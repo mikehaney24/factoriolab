@@ -165,6 +165,7 @@
   "flow": {
     "downloadAsJson": "Download as JSON",
     "exportBlueprint": "Export Blueprint",
+    "exportBlueprintCopied": "Copied Blueprint!",
     "flowSettings": "Flow settings"
   },
   "flowSettings": {

@@ -88,6 +88,8 @@ export class Flow {
   protected readonly faGear = faGear;
   protected readonly FlowSettingsDialog = FlowSettingsDialog;
 
+  exportText = signal('flow.exportBlueprint');
+
   constructor() {
     combineLatest({
       data: toObservable(this.flowBuilder.flowData),
@@ -98,6 +100,12 @@ export class Flow {
         switchMap(({ data, settings }) => this.rebuildChart(data, settings)),
       )
       .subscribe();
+  }
+
+  async exportBlueprint(): Promise<void> {
+    await this.exporter.exportToBlueprint(this.objectivesStore.steps());
+    this.exportText.set('flow.exportBlueprintCopied');
+    setTimeout(() => this.exportText.set('flow.exportBlueprint'), 3000);
   }
 
   async rebuildChart(
