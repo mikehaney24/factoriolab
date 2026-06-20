@@ -22,6 +22,7 @@ import {
   faSquareCheck,
   faStopwatch,
   faTableColumns,
+  faCopy,
 } from '@fortawesome/free-solid-svg-icons';
 
 import { RatePipe } from '~/components/steps/pipes/rate-pipe';
@@ -121,6 +122,7 @@ export class Steps {
   protected readonly faArrowUpRightFromSquare = faArrowUpRightFromSquare;
   protected readonly faEyeSlash = faEyeSlash;
   protected readonly faFileArrowDown = faFileArrowDown;
+  protected readonly faCopy = faCopy;
   protected readonly faLink = faLink;
   protected readonly faRotateLeft = faRotateLeft;
   protected readonly faSquareCheck = faSquareCheck;

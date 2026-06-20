@@ -8,7 +8,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
-import { faFileArrowDown, faGear } from '@fortawesome/free-solid-svg-icons';
+import { faCopy, faFileArrowDown, faGear } from '@fortawesome/free-solid-svg-icons';
 import { drag, select, Selection, zoom } from 'd3';
 import ELK, { ElkExtendedEdge, ElkNode } from 'elkjs';
 import { combineLatest, debounceTime, switchMap } from 'rxjs';
@@ -45,6 +45,7 @@ import { Link } from '~/flow/link';
 import { Node } from '~/flow/node';
 import { FlowDiagram } from '~/state/preferences/flow-diagram';
 import { FlowSettings } from '~/state/preferences/flow-settings';
+import { ObjectivesStore } from '~/state/objectives/objectives-store';
 import { PreferencesStore } from '~/state/preferences/preferences-store';
 import { SankeyAlign } from '~/state/preferences/sankey-align';
 import { coalesce } from '~/utils/nullish';
@@ -70,6 +71,7 @@ export class Flow {
   protected readonly dialog = inject(Dialog);
   protected readonly exporter = inject(Exporter);
   protected readonly flowBuilder = inject(FlowBuilder);
+  protected readonly objectivesStore = inject(ObjectivesStore);
   private readonly preferencesStore = inject(PreferencesStore);
 
   private readonly svgElement =
@@ -82,6 +84,7 @@ export class Flow {
 
   private readonly elk = new ELK();
   protected readonly faFileArrowDown = faFileArrowDown;
+  protected readonly faCopy = faCopy;
   protected readonly faGear = faGear;
   protected readonly FlowSettingsDialog = FlowSettingsDialog;
 
