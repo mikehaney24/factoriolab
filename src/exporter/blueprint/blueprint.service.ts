@@ -96,54 +96,74 @@ export class BlueprintService {
       // Generate items insert plan for modules
       const machineModulesPlan = this.generateInsertPlan(recipeSettings.modules, recipeSettings.machineId);
 
-      // Place machines
-      for (let i = 0; i < numMachines; i++) {
-        if (currentX > 0 && currentX + width > targetWidth) {
-          currentX = 0;
-          currentY += rowMaxHeight + 1;
-          rowMaxHeight = 0;
-        }
+      let machinesPlaced = 0;
+      let beaconsPlaced = 0;
 
-        const entity: IEntity = {
-          entity_number: entity_number++,
-          name: machineBaseId,
-          position: {
-            x: currentX + width / 2,
-            y: currentY + height / 2,
-          },
-          recipe: recipeBaseId,
-          recipe_quality: getQualityString(recipeQualityLevel),
-          quality: getQualityString(machineQualityLevel),
-          items: machineModulesPlan,
-        };
-        entities.push(entity);
-        
-        rowMaxHeight = Math.max(rowMaxHeight, height);
-        currentX += width + 1; // 1 tile gap
+      const beacons = recipeSettings.beacons || [];
+      // Handle the first valid beacon setting
+      const beaconSetting = beacons.find(b => b.id && b.count && !b.count.isZero());
+      let numBeacons = 0;
+      let beaconBaseId = '';
+      let beaconQualityLevel = 0;
+      let bWidth = 3;
+      let bHeight = 3;
+      let beaconModulesPlan: BlueprintInsertPlan[] = [];
+
+      if (beaconSetting && beaconSetting.id) {
+        numBeacons = Math.ceil((beaconSetting.total ?? beaconSetting.count!).toNumber());
+        const parsed = this.parseQualityId(beaconSetting.id);
+        beaconBaseId = parsed.baseId;
+        beaconQualityLevel = parsed.level ?? 0;
+        const beaconRecord = data.beaconRecord[beaconSetting.id];
+        bWidth = beaconRecord?.size?.[0] ?? 3;
+        bHeight = beaconRecord?.size?.[1] ?? 3;
+        beaconModulesPlan = this.generateInsertPlan(beaconSetting.modules, beaconSetting.id) ?? [];
       }
 
-      // Handle Beacons
-      if (recipeSettings.beacons) {
-        for (const beaconSettings of recipeSettings.beacons) {
-          if (!beaconSettings.id || !beaconSettings.count || beaconSettings.count.isZero()) continue;
+      while (machinesPlaced < numMachines) {
+        // 1. Place a row of machines
+        rowMaxHeight = 0;
 
-          // Use the calculated total beacons for the step, fallback to count if total is missing
-          const numBeacons = Math.ceil((beaconSettings.total ?? beaconSettings.count).toNumber());
-          const { baseId: beaconBaseId, level: beaconQualityLevel } = this.parseQualityId(beaconSettings.id);
+        while (machinesPlaced < numMachines) {
+          if (currentX > 0 && currentX + width > targetWidth) {
+            break; // Wrap to next row
+          }
 
-          const beaconRecord = data.beaconRecord[beaconSettings.id];
-          const bWidth = beaconRecord?.size?.[0] ?? 3;
-          const bHeight = beaconRecord?.size?.[1] ?? 3;
+          const entity: IEntity = {
+            entity_number: entity_number++,
+            name: machineBaseId,
+            position: {
+              x: currentX + width / 2,
+              y: currentY + height / 2,
+            },
+            recipe: recipeBaseId,
+            recipe_quality: getQualityString(recipeQualityLevel),
+            quality: getQualityString(machineQualityLevel),
+            items: machineModulesPlan,
+          };
+          entities.push(entity);
+          
+          rowMaxHeight = Math.max(rowMaxHeight, height);
+          currentX += width + 1; // 1 tile X gap
+          machinesPlaced++;
+        }
 
-          const beaconModulesPlan = this.generateInsertPlan(beaconSettings.modules, beaconSettings.id);
+        currentY += rowMaxHeight + 2; // 2 tile Y gap for belts/inserters between rows
+        currentX = 0;
 
-          for (let i = 0; i < numBeacons; i++) {
-            if (currentX > 0 && currentX + bWidth > targetWidth) {
-              currentX = 0;
-              currentY += rowMaxHeight + 1;
-              rowMaxHeight = 0;
-            }
+        // 2. Place a row of beacons interleaved
+        if (beaconSetting && beaconsPlaced < numBeacons) {
+          const machinesLeft = numMachines - machinesPlaced;
+          const machineRowsLeft = Math.ceil((machinesLeft * (width + 1)) / targetWidth);
+          const beaconRowsToPlace = 1 + machineRowsLeft;
+          
+          const maxBeaconsPerRow = Math.max(1, Math.floor(targetWidth / (bWidth + 1)));
+          let beaconsForThisRow = Math.ceil((numBeacons - beaconsPlaced) / beaconRowsToPlace);
+          beaconsForThisRow = Math.min(beaconsForThisRow, maxBeaconsPerRow);
+          beaconsForThisRow = Math.min(beaconsForThisRow, numBeacons - beaconsPlaced);
 
+          rowMaxHeight = 0;
+          for (let i = 0; i < beaconsForThisRow; i++) {
             const entity: IEntity = {
               entity_number: entity_number++,
               name: beaconBaseId,
@@ -158,8 +178,39 @@ export class BlueprintService {
 
             rowMaxHeight = Math.max(rowMaxHeight, bHeight);
             currentX += bWidth + 1;
+            beaconsPlaced++;
           }
+          
+          currentY += rowMaxHeight + 2; 
+          currentX = 0;
         }
+      }
+
+      // Place any leftover beacons in additional rows
+      while (beaconSetting && beaconsPlaced < numBeacons) {
+        rowMaxHeight = 0;
+
+        while (beaconsPlaced < numBeacons) {
+          if (currentX > 0 && currentX + bWidth > targetWidth) {
+            break; 
+          }
+          const entity: IEntity = {
+            entity_number: entity_number++,
+            name: beaconBaseId,
+            position: {
+              x: currentX + bWidth / 2,
+              y: currentY + bHeight / 2,
+            },
+            quality: getQualityString(beaconQualityLevel),
+            items: beaconModulesPlan,
+          };
+          entities.push(entity);
+          rowMaxHeight = Math.max(rowMaxHeight, bHeight);
+          currentX += bWidth + 1;
+          beaconsPlaced++;
+        }
+        currentY += rowMaxHeight + 2;
+        currentX = 0;
       }
     }
 
