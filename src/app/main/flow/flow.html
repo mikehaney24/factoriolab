@@ -11,6 +11,13 @@
     <button
       type="button"
       labButton
+      [faIcon]="faCopy"
+      text="flow.exportBlueprint"
+      (click)="exporter.exportToBlueprint(objectivesStore.steps())"
+    ></button>
+    <button
+      type="button"
+      labButton
       [faIcon]="faFileArrowDown"
       text="flow.downloadAsJson"
       (click)="exporter.flowToJson(_flowData)"
