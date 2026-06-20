@@ -134,6 +134,13 @@ export class Steps {
   protected readonly totals = this.objectivesStore.totals;
 
   protected readonly expandedSteps = signal<Set<string>>(new Set());
+  exportText = signal('flow.exportBlueprint');
+
+  async exportBlueprint(): Promise<void> {
+    await this.exporter.exportToBlueprint(this.objectivesStore.steps());
+    this.exportText.set('flow.exportBlueprintCopied');
+    setTimeout(() => this.exportText.set('flow.exportBlueprint'), 3000);
+  }
 
   protected readonly steps = computed(() => {
     const steps = this.objectivesStore.steps();

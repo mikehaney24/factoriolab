@@ -12,8 +12,8 @@
       type="button"
       labButton
       [faIcon]="faCopy"
-      text="flow.exportBlueprint"
-      (click)="exporter.exportToBlueprint(objectivesStore.steps())"
+      [text]="exportText()"
+      (click)="exportBlueprint()"
     ></button>
     <button
       type="button"

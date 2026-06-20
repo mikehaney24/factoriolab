@@ -35,6 +35,19 @@ describe('Flow', () => {
     expect(component).toBeTruthy();
   });
 
+  describe('exportBlueprint', () => {
+    it('should export blueprint and update text temporarily', async () => {
+      jasmine.clock().install();
+      spyOn(component['exporter'], 'exportToBlueprint').and.returnValue(Promise.resolve());
+      await component.exportBlueprint();
+      expect(component['exporter'].exportToBlueprint).toHaveBeenCalled();
+      expect(component.exportText()).toEqual('flow.exportBlueprintCopied');
+      jasmine.clock().tick(3000);
+      expect(component.exportText()).toEqual('flow.exportBlueprint');
+      jasmine.clock().uninstall();
+    });
+  });
+
   describe('rebuildChart', () => {
     it('should call to rebuild the sankey', async () => {
       spyOn(component, 'rebuildSankey');
