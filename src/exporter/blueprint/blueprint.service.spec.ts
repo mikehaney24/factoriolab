@@ -197,6 +197,51 @@ describe('BlueprintService', () => {
       expect(beaconEntity?.quality).toBe('rare');
     });
 
+    it('should handle edge cases for layout and beacons', async () => {
+      const steps: Step[] = [
+        {
+          id: '1',
+          recipeId: 'iron-gear-wheel',
+          machines: rational(20), // 20 machines to trigger machine wrapping
+          recipeSettings: {
+            machineId: 'assembling-machine-1',
+            beacons: [
+              { count: rational(1) }, // Ignored because no id
+              { id: 'beacon', count: rational.zero }, // Should be ignored
+              { id: 'beacon', count: rational(20) } // No 'total' property, 20 beacons to trigger leftover rows
+            ]
+          } as any
+        },
+        {
+          id: '2',
+          recipeId: 'copper-cable',
+          machines: rational(1),
+          recipeSettings: {
+            machineId: 'assembling-machine-1',
+            beacons: [
+              { id: 'beacon', count: rational.zero } // All beacons ignored
+            ]
+          } as any
+        },
+        {
+          id: '3',
+          recipeId: 'transport-belt',
+          machines: rational(1), // Must be > 0 so the step isn't skipped
+          recipeSettings: {
+            machineId: 'assembling-machine-1',
+            beacons: [
+              { id: 'fake-beacon-id', count: rational(2) } // Fake ID triggers size ?? 3 fallback
+            ]
+          } as any
+        }
+      ];
+
+      const bp = await service.generateBlueprintFromSteps(steps, mockData);
+      const decoded: IBlueprintData = await decodeFactorioBlueprint(bp);
+      
+      expect(decoded.blueprint.entities?.length).toBe(44); // 40 (step 1) + 1 (step 2) + 3 (step 3)
+    });
+
     it('should handle step with no output and empty modules', async () => {
       const steps: Step[] = [
         {
