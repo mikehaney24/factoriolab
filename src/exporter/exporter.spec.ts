@@ -111,4 +111,16 @@ describe('Exporter', () => {
       });
     });
   });
+
+  describe('exportToBlueprint', () => {
+    it('should call blueprintService and write to clipboard', async () => {
+      const generateSpy = spyOn(service['blueprintService'], 'generateBlueprintFromSteps').and.returnValue(Promise.resolve('0eTest'));
+      const writeTextSpy = spyOn(navigator.clipboard, 'writeText').and.returnValue(Promise.resolve());
+
+      await service.exportToBlueprint([]);
+
+      expect(generateSpy).toHaveBeenCalled();
+      expect(writeTextSpy).toHaveBeenCalledWith('0eTest');
+    });
+  });
 });

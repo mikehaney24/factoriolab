@@ -11,6 +11,7 @@ import { SettingsStore } from '~/state/settings/settings-store';
 import { coalesce, fnPropsNotNullish, notNullish } from '~/utils/nullish';
 
 import { StepExport, StepKeys } from './step-export';
+import { BlueprintService } from './blueprint/blueprint.service';
 
 const CSV_TYPE = 'text/csv;charset=UTF-8';
 const CSV_EXTENSION = '.csv';
@@ -23,6 +24,7 @@ export class Exporter {
   private readonly itemsStore = inject(ItemsStore);
   private readonly recipesStore = inject(RecipesStore);
   private readonly settingsStore = inject(SettingsStore);
+  private readonly blueprintService = inject(BlueprintService);
 
   private readonly itemsState = this.itemsStore.settings;
   private readonly recipesState = this.recipesStore.settings;
@@ -40,6 +42,12 @@ export class Exporter {
 
   flowToJson(flowData: FlowData): void {
     this.saveAsJson(JSON.stringify(flowData), 'factoriolab_flow');
+  }
+
+  async exportToBlueprint(steps: Step[]): Promise<void> {
+    const data = this.data();
+    const str = await this.blueprintService.generateBlueprintFromSteps(steps, data);
+    navigator.clipboard.writeText(str);
   }
 
   // istanbul ignore next: Don't test dependencies (file-saver)
