@@ -42,7 +42,37 @@ export class BlueprintService {
     const entities: IEntity[] = [];
     let entity_number = 1;
 
+    // Calculate target width for a 16:9 aspect ratio blueprint
+    let totalArea = 0;
+    for (const step of steps) {
+      if (step.machines == null || step.machines.isZero()) continue;
+      const recipeSettings = step.recipeSettings;
+      if (!recipeSettings || !recipeSettings.machineId) continue;
+
+      const machineIdStr = recipeSettings.machineId;
+      const machineRecord = data.machineRecord[machineIdStr];
+      const width = machineRecord?.size?.[0] ?? 3;
+      const height = machineRecord?.size?.[1] ?? 3;
+      const numMachines = Math.ceil(step.machines.toNumber());
+      totalArea += numMachines * (width + 1) * (height + 1);
+
+      if (recipeSettings.beacons) {
+        for (const beaconSettings of recipeSettings.beacons) {
+          if (!beaconSettings.id || !beaconSettings.count || beaconSettings.count.isZero()) continue;
+          const numBeacons = Math.ceil((beaconSettings.total ?? beaconSettings.count).toNumber());
+          const beaconRecord = data.beaconRecord[beaconSettings.id];
+          const bWidth = beaconRecord?.size?.[0] ?? 3;
+          const bHeight = beaconRecord?.size?.[1] ?? 3;
+          totalArea += numBeacons * (bWidth + 1) * (bHeight + 1);
+        }
+      }
+    }
+
+    const targetWidth = Math.max(30, Math.ceil(Math.sqrt(totalArea * 16 / 9)));
+
+    let currentX = 0;
     let currentY = 0;
+    let rowMaxHeight = 0;
 
     for (const step of steps) {
       if (step.machines == null || step.machines.isZero()) continue;
@@ -66,9 +96,14 @@ export class BlueprintService {
       // Generate items insert plan for modules
       const machineModulesPlan = this.generateInsertPlan(recipeSettings.modules, recipeSettings.machineId);
 
-      // Place machines in a row
-      let currentX = 0;
+      // Place machines
       for (let i = 0; i < numMachines; i++) {
+        if (currentX > 0 && currentX + width > targetWidth) {
+          currentX = 0;
+          currentY += rowMaxHeight + 1;
+          rowMaxHeight = 0;
+        }
+
         const entity: IEntity = {
           entity_number: entity_number++,
           name: machineBaseId,
@@ -82,10 +117,10 @@ export class BlueprintService {
           items: machineModulesPlan,
         };
         entities.push(entity);
+        
+        rowMaxHeight = Math.max(rowMaxHeight, height);
         currentX += width + 1; // 1 tile gap
       }
-
-      currentY += height + 1;
 
       // Handle Beacons
       if (recipeSettings.beacons) {
@@ -102,8 +137,13 @@ export class BlueprintService {
 
           const beaconModulesPlan = this.generateInsertPlan(beaconSettings.modules, beaconSettings.id);
 
-          currentX = 0;
           for (let i = 0; i < numBeacons; i++) {
+            if (currentX > 0 && currentX + bWidth > targetWidth) {
+              currentX = 0;
+              currentY += rowMaxHeight + 1;
+              rowMaxHeight = 0;
+            }
+
             const entity: IEntity = {
               entity_number: entity_number++,
               name: beaconBaseId,
@@ -115,13 +155,12 @@ export class BlueprintService {
               items: beaconModulesPlan,
             };
             entities.push(entity);
+
+            rowMaxHeight = Math.max(rowMaxHeight, bHeight);
             currentX += bWidth + 1;
           }
-          currentY += bHeight + 1;
         }
       }
-      
-      currentY += 1; // Extra gap between steps
     }
 
     const icons: IIcon[] = [];
