@@ -162,7 +162,7 @@ describe('BlueprintService', () => {
           id: '1',
           itemId: 'iron-gear-wheel(2)',
           recipeId: 'iron-gear-wheel(1)',
-          machines: rational(2),
+          machines: rational(20),
           output: rational(10),
           recipeSettings: {
             machineId: 'assembling-machine-2(1)',
@@ -173,7 +173,7 @@ describe('BlueprintService', () => {
               { id: 'speed-module(2)', count: rational(2) } // Same baseId to trigger combination
             ],
             beacons: [
-              { id: 'beacon(2)', count: rational.one, modules: [{ id: 'productivity-module', count: rational(2) }] },
+              { id: 'beacon(2)', count: rational(20), modules: [{ id: 'productivity-module', count: rational(2) }] },
               { id: 'beacon', count: rational.zero },
               { id: undefined, count: rational.one }
             ]
@@ -187,7 +187,7 @@ describe('BlueprintService', () => {
       const decoded: IBlueprintData = await decodeFactorioBlueprint(bp);
 
       expect(decoded.blueprint.icons[0].signal.name).toBe('iron-gear-wheel');
-      expect(decoded.blueprint.entities?.length).toBe(3); // 2 machines + 1 beacon
+      expect(decoded.blueprint.entities?.length).toBe(40); // 20 machines + 20 beacons
       
       const machineEntity = decoded.blueprint.entities?.find(e => e.name === 'assembling-machine-2');
       expect(machineEntity?.quality).toBe('uncommon');
