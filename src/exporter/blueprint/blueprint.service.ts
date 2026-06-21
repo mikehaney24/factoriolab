@@ -180,10 +180,11 @@ export class BlueprintService {
          const fraction = targetStep.parents?.['']?.toNumber() ?? 1.0;
          const targetBelts = targetStep.belts ? targetStep.belts.toNumber() * fraction : 0;
          const isFluid = !data.itemRecord[targetStep.itemId]?.stack;
+         const tag = isFluid ? 'fluid' : 'item';
          if (targetBelts > 0.01 && !isFluid) {
-            outputLines.push(`[item=${targetStep.itemId}] Out: ${Math.round(targetBelts * 100) / 100} belts`);
+            outputLines.push(`[${tag}=${targetStep.itemId}] Out: ${Math.round(targetBelts * 100) / 100} belts`);
          } else if (targetStep.items) {
-            outputLines.push(`[item=${targetStep.itemId}] Out: ${Math.round(targetStep.items.toNumber() * fraction * 10) / 10}/m`);
+            outputLines.push(`[${tag}=${targetStep.itemId}] Out: ${Math.round(targetStep.items.toNumber() * fraction * 10) / 10}/m`);
          }
       }
 
@@ -194,11 +195,12 @@ export class BlueprintService {
             if ((!step.machines || step.machines.isZero()) && step.itemId) {
                const beltsRequired = step.belts ? step.belts.toNumber() * fraction : 0;
                const isFluid = !data.itemRecord[step.itemId]?.stack;
+               const tag = isFluid ? 'fluid' : 'item';
                if (beltsRequired > 0.01 && !isFluid) {
-                  inputLines.push(`[item=${step.itemId}] In: ${Math.round(beltsRequired * 100) / 100} belts`);
+                  inputLines.push(`[${tag}=${step.itemId}] In: ${Math.round(beltsRequired * 100) / 100} belts`);
                } else if (step.items) {
                   const itemsReq = step.items.toNumber() * fraction;
-                  if (itemsReq > 0) inputLines.push(`[item=${step.itemId}] In: ${Math.round(itemsReq * 10) / 10}/m`);
+                  if (itemsReq > 0) inputLines.push(`[${tag}=${step.itemId}] In: ${Math.round(itemsReq * 10) / 10}/m`);
                }
             }
          }
@@ -315,12 +317,16 @@ export class BlueprintService {
              const fraction = fractionByTarget.get(step.id!)?.get(targetId) ?? 0;
              const beltsRequired = step.belts ? step.belts.toNumber() * fraction : 0;
              const isFluid = !data.itemRecord[step.itemId]?.stack;
+             const tag = isFluid ? 'fluid' : 'item';
              let text = '';
              if (beltsRequired > 0.01 && !isFluid) {
-                text = `[item=${step.itemId}] Expected: ${Math.round(beltsRequired * 100) / 100} belts`;
+                text = `[${tag}=${step.itemId}] Expected: ${Math.round(beltsRequired * 100) / 100} belts`;
              } else if (step.items) {
                 const itemsReq = step.items.toNumber() * fraction;
-                if (itemsReq > 0.01) text = `[item=${step.itemId}] Expected: ${Math.round(itemsReq * 10) / 10}/m`;
+                if (itemsReq > 0.01) text = `[${tag}=${step.itemId}] Expected: ${Math.round(itemsReq * 10) / 10}/m`;
+             }
+             if (text && numMachines > 0) {
+                text += `\n[entity=${machineBaseId}] ${numMachines}`;
              }
              if (text) {
                 entities.push({
