@@ -70,66 +70,197 @@ export class BlueprintService {
 
     const targetWidth = Math.max(30, Math.ceil(Math.sqrt(totalArea * 16 / 9)));
 
-    let currentX = 0;
-    let currentY = 0;
-    let rowMaxHeight = 0;
+    // 1. Build Adjacency List for DAG depth calculation
+    const incomingEdges = new Map<string, string[]>();
+    const stepMap = new Map<string, Step>();
+    for (const step of steps) {
+      if (!step.id) continue;
+      stepMap.set(step.id, step);
+      if (!incomingEdges.has(step.id)) incomingEdges.set(step.id, []);
+    }
 
     for (const step of steps) {
-      if (step.machines == null || step.machines.isZero()) continue;
+      if (!step.id || !step.parents) continue;
+      for (const parentId of Object.keys(step.parents)) {
+         if (parentId === '') continue; // '' is output
+         if (!incomingEdges.has(parentId)) incomingEdges.set(parentId, []);
+         incomingEdges.get(parentId)!.push(step.id);
+      }
+    }
 
-      const recipeId = step.recipeId;
-      const recipeSettings = step.recipeSettings;
+    // 2. Calculate Topological Depth
+    const depths = new Map<string, number>();
+    const calcDepth = (id: string, visited: Set<string>): number => {
+      if (depths.has(id)) return depths.get(id)!;
+      if (visited.has(id)) return 0; // Cycle detected
+      visited.add(id);
+
+      const incoming = incomingEdges.get(id) || [];
+      let maxDepth = 0;
+      for (const inc of incoming) {
+        maxDepth = Math.max(maxDepth, calcDepth(inc, visited) + 1);
+      }
       
-      if (!recipeId || !recipeSettings || !recipeSettings.machineId) continue;
+      visited.delete(id);
+      depths.set(id, maxDepth);
+      return maxDepth;
+    };
 
-      const machineIdStr = recipeSettings.machineId;
-      const { baseId: machineBaseId, level: machineQualityLevel } = this.parseQualityId(machineIdStr);
-      
-      const machineRecord = data.machineRecord[machineIdStr];
-      const width = machineRecord?.size?.[0] ?? 3;
-      const height = machineRecord?.size?.[1] ?? 3;
+    for (const step of steps) {
+       if (step.id && !depths.has(step.id)) {
+           calcDepth(step.id, new Set());
+       }
+    }
 
-      const numMachines = Math.ceil(step.machines.toNumber());
+    // 3. Proportional Step Splitting (Top-Down by Depth)
+    const fractionByTarget = new Map<string, Map<string, number>>();
+    for (const step of steps) {
+       if (step.id) fractionByTarget.set(step.id, new Map());
+    }
 
-      let { baseId: recipeBaseId, level: recipeQualityLevel } = this.parseQualityId(recipeId);
+    const targets: string[] = [];
+    for (const step of steps) {
+      if (!step.id || !step.parents) continue;
+      if (step.parents[''] && !step.parents[''].isZero()) {
+         fractionByTarget.get(step.id)!.set(step.id, step.parents[''].toNumber());
+         targets.push(step.id);
+      }
+    }
 
-      // Generate items insert plan for modules
-      const machineModulesPlan = this.generateInsertPlan(recipeSettings.modules, recipeSettings.machineId);
+    // Sort step IDs by depth descending
+    const sortedStepIds = Array.from(stepMap.keys()).sort((a, b) => (depths.get(b) ?? 0) - (depths.get(a) ?? 0));
 
-      let machinesPlaced = 0;
-      let beaconsPlaced = 0;
+    for (const stepId of sortedStepIds) {
+       const step = stepMap.get(stepId)!;
+       const targetMap = fractionByTarget.get(stepId)!;
+       
+       if (step.parents) {
+         for (const parentId of Object.keys(step.parents)) {
+           if (parentId === '') continue;
+           const consumerTargetMap = fractionByTarget.get(parentId);
+           if (!consumerTargetMap) continue;
+           
+           const fractionGoingToConsumer = step.parents[parentId].toNumber();
+           
+           for (const [targetId, consumerFraction] of consumerTargetMap.entries()) {
+              const currentFraction = targetMap.get(targetId) ?? 0;
+              targetMap.set(targetId, currentFraction + (fractionGoingToConsumer * consumerFraction));
+           }
+         }
+       }
+    }
 
-      const beacons = recipeSettings.beacons || [];
-      // Handle the first valid beacon setting
-      const beaconSetting = beacons.find(b => b.id && b.count && !b.count.isZero());
-      let numBeacons = 0;
-      let beaconBaseId = '';
-      let beaconQualityLevel = 0;
-      let bWidth = 3;
-      let bHeight = 3;
-      let beaconModulesPlan: BlueprintInsertPlan[] = [];
+    // 4. Independent Row Layouts
+    let globalY = 0;
 
-      if (beaconSetting && beaconSetting.id) {
-        numBeacons = Math.ceil((beaconSetting.total ?? beaconSetting.count!).toNumber());
-        const parsed = this.parseQualityId(beaconSetting.id);
-        beaconBaseId = parsed.baseId;
-        beaconQualityLevel = parsed.level ?? 0;
-        const beaconRecord = data.beaconRecord[beaconSetting.id];
-        bWidth = beaconRecord?.size?.[0] ?? 3;
-        bHeight = beaconRecord?.size?.[1] ?? 3;
-        beaconModulesPlan = this.generateInsertPlan(beaconSetting.modules, beaconSetting.id) ?? [];
+    for (const targetId of targets) {
+      const targetSteps: Step[] = [];
+      for (const step of steps) {
+         if (!step.id || step.machines == null || step.machines.isZero()) continue;
+         const fraction = fractionByTarget.get(step.id)?.get(targetId) ?? 0;
+         if (fraction > 0.0001) {
+            targetSteps.push({
+               ...step,
+               machines: rational(Math.ceil(step.machines.toNumber() * fraction))
+            });
+         }
       }
 
-      while (machinesPlaced < numMachines) {
-        // 1. Place a row of machines
-        rowMaxHeight = 0;
+      if (targetSteps.length === 0) continue;
 
-        while (machinesPlaced < numMachines) {
-          if (currentX > 0 && currentX + width > targetWidth) {
-            break; // Wrap to next row
+      const stepsByDepth: Record<number, Step[]> = {};
+      for (const step of targetSteps) {
+        const depth = depths.get(step.id!) ?? 0;
+        if (!stepsByDepth[depth]) stepsByDepth[depth] = [];
+        stepsByDepth[depth].push(step);
+      }
+
+      const depthKeys = Object.keys(stepsByDepth).map(Number).sort((a, b) => a - b);
+      
+      let currentX = 0;
+      const stepCenterY = new Map<string, number>();
+      let maxBandY = globalY;
+
+      for (let dIndex = 0; dIndex < depthKeys.length; dIndex++) {
+        const depth = depthKeys[dIndex];
+        const depthSteps = stepsByDepth[depth];
+        
+        depthSteps.sort((a, b) => {
+          const getBarycenter = (step: Step) => {
+             const incoming = incomingEdges.get(step.id!) || [];
+             let sum = 0, count = 0;
+             for(const inc of incoming) {
+                if (stepCenterY.has(inc)) {
+                   sum += stepCenterY.get(inc)!;
+                   count++;
+                }
+             }
+             return count > 0 ? sum / count : globalY;
+          };
+          return getBarycenter(a) - getBarycenter(b);
+        });
+
+        let currentY = globalY;
+        let colMaxWidth = 0;
+        let maxColY = globalY;
+
+        let beaconSetting = null;
+        let beaconModulesPlan: BlueprintInsertPlan[] = [];
+        let beaconBaseId = '';
+        let beaconQualityLevel = 0;
+        let bWidth = 3;
+        let bHeight = 3;
+
+        for (const step of depthSteps) {
+          const recipeId = step.recipeId;
+          const recipeSettings = step.recipeSettings;
+          if (!recipeId || !recipeSettings || !recipeSettings.machineId) continue;
+
+          const machineIdStr = recipeSettings.machineId;
+          const { baseId: machineBaseId, level: machineQualityLevel } = this.parseQualityId(machineIdStr);
+          
+          const machineRecord = data.machineRecord[machineIdStr];
+          const width = machineRecord?.size?.[0] ?? 3;
+          const height = machineRecord?.size?.[1] ?? 3;
+
+          const numMachines = Math.ceil(step.machines!.toNumber());
+          let { baseId: recipeBaseId, level: recipeQualityLevel } = this.parseQualityId(recipeId);
+          const machineModulesPlan = this.generateInsertPlan(recipeSettings.modules, recipeSettings.machineId) ?? [];
+
+          if (!beaconSetting) {
+            const beacons = recipeSettings.beacons || [];
+            beaconSetting = beacons.find(b => b.id && b.count && !b.count.isZero());
+            if (beaconSetting && beaconSetting.id) {
+              const parsed = this.parseQualityId(beaconSetting.id);
+              beaconBaseId = parsed.baseId;
+              beaconQualityLevel = parsed.level ?? 0;
+              const beaconRecord = data.beaconRecord[beaconSetting.id];
+              bWidth = beaconRecord?.size?.[0] ?? 3;
+              bHeight = beaconRecord?.size?.[1] ?? 3;
+              beaconModulesPlan = this.generateInsertPlan(beaconSetting.modules, beaconSetting.id) ?? [];
+            }
           }
 
-          const entity: IEntity = {
+          const incoming = incomingEdges.get(step.id!) || [];
+          let sum = 0, count = 0;
+          for (const inc of incoming) {
+             if (stepCenterY.has(inc)) {
+                sum += stepCenterY.get(inc)!;
+                count++;
+             }
+          }
+          const barycenter = count > 0 ? sum / count : globalY;
+          const idealStartY = count > 0 ? barycenter - (numMachines * height) / 2 : currentY;
+          
+          if (idealStartY > currentY) {
+             currentY = idealStartY; 
+          }
+
+          const blockStartY = currentY;
+
+          let machinesPlaced = 0;
+          while (machinesPlaced < numMachines) {
+            const entity: IEntity = {
             entity_number: entity_number++,
             name: machineBaseId,
             position: {
@@ -143,76 +274,48 @@ export class BlueprintService {
           };
           entities.push(entity);
           
-          rowMaxHeight = Math.max(rowMaxHeight, height);
-          currentX += width + 1; // 1 tile X gap
+          currentY += height; // 0 tile Y gap for vertical adjacency
+          maxColY = Math.max(maxColY, currentY);
+          colMaxWidth = Math.max(colMaxWidth, width);
           machinesPlaced++;
         }
 
-        currentY += rowMaxHeight + 2; // 2 tile Y gap for belts/inserters between rows
-        currentX = 0;
+        // Record the center Y of this step for its children to use
+        stepCenterY.set(step.id!, blockStartY + (numMachines * height) / 2);
+        
+        // Add a small 2-tile gap between different steps in the same column
+        currentY += 2;
+      }
 
-        // 2. Place a row of beacons interleaved
-        if (beaconSetting && beaconsPlaced < numBeacons) {
-          const machinesLeft = numMachines - machinesPlaced;
-          const machineRowsLeft = Math.ceil((machinesLeft * (width + 1)) / targetWidth);
-          const beaconRowsToPlace = 1 + machineRowsLeft;
-          
-          const maxBeaconsPerRow = Math.max(1, Math.floor(targetWidth / (bWidth + 1)));
-          let beaconsForThisRow = Math.ceil((numBeacons - beaconsPlaced) / beaconRowsToPlace);
-          beaconsForThisRow = Math.min(beaconsForThisRow, maxBeaconsPerRow);
-          beaconsForThisRow = Math.min(beaconsForThisRow, numBeacons - beaconsPlaced);
-
-          rowMaxHeight = 0;
-          for (let i = 0; i < beaconsForThisRow; i++) {
+      // 6. Place a shared beacon column
+      if (maxColY > globalY) {
+        currentX += colMaxWidth + 2; // Move right by machine width + 2 tile gap
+        
+        if (beaconSetting && beaconSetting.id) {
+          const numBeaconsToPlace = Math.max(1, Math.floor((maxColY - globalY) / bHeight));
+          let by = globalY;
+          for (let j = 0; j < numBeaconsToPlace; j++) {
             const entity: IEntity = {
               entity_number: entity_number++,
               name: beaconBaseId,
               position: {
                 x: currentX + bWidth / 2,
-                y: currentY + bHeight / 2,
+                y: by + bHeight / 2,
               },
               quality: getQualityString(beaconQualityLevel),
               items: beaconModulesPlan,
             };
             entities.push(entity);
-
-            rowMaxHeight = Math.max(rowMaxHeight, bHeight);
-            currentX += bWidth + 1;
-            beaconsPlaced++;
+            by += bHeight;
           }
-          
-          currentY += rowMaxHeight + 2; 
-          currentX = 0;
+          currentX += bWidth + 2; // Move right by beacon width + 2 tile gap
         }
       }
-
-      // Place any leftover beacons in additional rows
-      while (beaconSetting && beaconsPlaced < numBeacons) {
-        rowMaxHeight = 0;
-
-        while (beaconsPlaced < numBeacons) {
-          if (currentX > 0 && currentX + bWidth > targetWidth) {
-            break; 
-          }
-          const entity: IEntity = {
-            entity_number: entity_number++,
-            name: beaconBaseId,
-            position: {
-              x: currentX + bWidth / 2,
-              y: currentY + bHeight / 2,
-            },
-            quality: getQualityString(beaconQualityLevel),
-            items: beaconModulesPlan,
-          };
-          entities.push(entity);
-          rowMaxHeight = Math.max(rowMaxHeight, bHeight);
-          currentX += bWidth + 1;
-          beaconsPlaced++;
-        }
-        currentY += rowMaxHeight + 2;
-        currentX = 0;
-      }
-    }
+      maxBandY = Math.max(maxBandY, maxColY);
+      } // end depth loop
+      
+      globalY = maxBandY + 10; // 10 tile gap between independent target bands
+    } // end target loop
 
     const icons: IIcon[] = [];
     const mainIconItem = steps.find(s => s.output && s.output.gt(rational.zero))?.itemId ?? steps[0]?.itemId;
