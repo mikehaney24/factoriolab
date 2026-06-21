@@ -40,6 +40,12 @@ export interface IEntity {
   recipe_quality?: string;
   items?: Record<string, number> | BlueprintInsertPlan[]; // Pre-2.0 or Post-2.0 modules
   quality?: string; // Entity quality
+  
+  // Display Panel fields
+  text?: string;
+  icon?: ISignal;
+  always_show?: boolean;
+  show_in_chart?: boolean;
 }
 
 export interface IIcon {
