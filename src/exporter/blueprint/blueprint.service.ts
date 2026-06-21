@@ -11,6 +11,7 @@ import {
   IBlueprintData,
   IEntity,
   IIcon,
+  ISignal,
   getQualityString,
 } from './blueprint-types';
 
@@ -168,6 +169,57 @@ export class BlueprintService {
 
       if (targetSteps.length === 0) continue;
 
+      // Calculate Input and Output texts for the display panel
+      const inputLines: string[] = [];
+      const outputLines: string[] = [];
+      let targetIcon: ISignal | undefined = undefined;
+
+      const targetStep = stepMap.get(targetId);
+      if (targetStep && targetStep.itemId) {
+         targetIcon = { name: targetStep.itemId, type: data.itemRecord[targetStep.itemId]?.stack ? 'item' : 'fluid' };
+         const fraction = targetStep.parents?.['']?.toNumber() ?? 1.0;
+         const targetBelts = targetStep.belts ? targetStep.belts.toNumber() * fraction : 0;
+         const isFluid = !data.itemRecord[targetStep.itemId]?.stack;
+         if (targetBelts > 0.01 && !isFluid) {
+            outputLines.push(`[item=${targetStep.itemId}] Out: ${Math.round(targetBelts * 100) / 100} belts`);
+         } else if (targetStep.items) {
+            outputLines.push(`[item=${targetStep.itemId}] Out: ${Math.round(targetStep.items.toNumber() * fraction * 10) / 10}/m`);
+         }
+      }
+
+      for (const step of steps) {
+         if (!step.id) continue;
+         const fraction = fractionByTarget.get(step.id)?.get(targetId) ?? 0;
+         if (fraction > 0.0001) {
+            if ((!step.machines || step.machines.isZero()) && step.itemId) {
+               const beltsRequired = step.belts ? step.belts.toNumber() * fraction : 0;
+               const isFluid = !data.itemRecord[step.itemId]?.stack;
+               if (beltsRequired > 0.01 && !isFluid) {
+                  inputLines.push(`[item=${step.itemId}] In: ${Math.round(beltsRequired * 100) / 100} belts`);
+               } else if (step.items) {
+                  const itemsReq = step.items.toNumber() * fraction;
+                  if (itemsReq > 0) inputLines.push(`[item=${step.itemId}] In: ${Math.round(itemsReq * 10) / 10}/m`);
+               }
+            }
+         }
+      }
+
+      const panelText = [...outputLines, ...inputLines].join('\n');
+      if (panelText) {
+        entities.push({
+          entity_number: entity_number++,
+          name: 'display-panel',
+          position: {
+            x: -5,
+            y: globalY + 1.5,
+          },
+          text: panelText,
+          icon: targetIcon,
+          always_show: true,
+          show_in_chart: true
+        });
+      }
+
       const stepsByDepth: Record<number, Step[]> = {};
       for (const step of targetSteps) {
         const depth = depths.get(step.id!) ?? 0;
@@ -258,6 +310,34 @@ export class BlueprintService {
 
           const blockStartY = currentY;
 
+          const incomingForGatherer = incomingEdges.get(step.id!) || [];
+          if (incomingForGatherer.length === 0 && step.itemId) {
+             const fraction = fractionByTarget.get(step.id!)?.get(targetId) ?? 0;
+             const beltsRequired = step.belts ? step.belts.toNumber() * fraction : 0;
+             const isFluid = !data.itemRecord[step.itemId]?.stack;
+             let text = '';
+             if (beltsRequired > 0.01 && !isFluid) {
+                text = `[item=${step.itemId}] Expected: ${Math.round(beltsRequired * 100) / 100} belts`;
+             } else if (step.items) {
+                const itemsReq = step.items.toNumber() * fraction;
+                if (itemsReq > 0.01) text = `[item=${step.itemId}] Expected: ${Math.round(itemsReq * 10) / 10}/m`;
+             }
+             if (text) {
+                entities.push({
+                   entity_number: entity_number++,
+                   name: 'display-panel',
+                   position: {
+                      x: currentX - 1.5,
+                      y: blockStartY + height / 2,
+                   },
+                   text: text,
+                   icon: { name: step.itemId, type: data.itemRecord[step.itemId]?.stack ? 'item' : 'fluid' },
+                   always_show: true,
+                   show_in_chart: true
+                });
+             }
+          }
+
           let machinesPlaced = 0;
           while (machinesPlaced < numMachines) {
             const entity: IEntity = {
@@ -314,7 +394,7 @@ export class BlueprintService {
       maxBandY = Math.max(maxBandY, maxColY);
       } // end depth loop
       
-      globalY = maxBandY + 10; // 10 tile gap between independent target bands
+      globalY = maxBandY + 3; // 3 tile gap between independent target bands
     } // end target loop
 
     const icons: IIcon[] = [];
@@ -323,7 +403,7 @@ export class BlueprintService {
       const { baseId: iconBaseId } = this.parseQualityId(mainIconItem);
       icons.push({
         index: 1,
-        signal: { type: 'item', name: iconBaseId },
+        signal: { type: data.itemRecord[iconBaseId]?.stack ? 'item' : 'fluid', name: iconBaseId },
       });
     }
 
