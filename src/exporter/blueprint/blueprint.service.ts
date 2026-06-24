@@ -13,7 +13,7 @@ import {
   IIcon,
   } from './blueprint-types';
 
-export const FACTORIO_2_0_VERSION = 562949956370432; // Factorio 2.0.45.0
+export const FACTORIO_2_1_VERSION = 562954248847360; // Factorio 2.1.7.0
 
 @Injectable({
   providedIn: 'root',
@@ -101,7 +101,7 @@ export class BlueprintService {
     if (targetSteps.length === 0) {
       return this.encodeBlueprintString({
         blueprint: {
-          version: FACTORIO_2_0_VERSION,
+          version: FACTORIO_2_1_VERSION,
           item: 'blueprint',
           label: 'FactorioLab Export',
           icons: [],
@@ -426,7 +426,7 @@ export class BlueprintService {
 
     const blueprintData: IBlueprintData = {
       blueprint: {
-        version: FACTORIO_2_0_VERSION,
+        version: FACTORIO_2_1_VERSION,
         item: 'blueprint',
         label: 'FactorioLab Export',
         icons,
