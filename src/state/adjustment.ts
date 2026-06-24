@@ -5,8 +5,9 @@ import { AdjustedInserter } from '~/data/schema/inserter';
 import { itemHasQuality } from '~/data/schema/item';
 import { Machine } from '~/data/schema/machine';
 import {
-  effectPrecision,
   effects,
+  highEffectPrecision,
+  lowEffectPrecision,
   ModuleEffect,
   SOMERSLOOP,
 } from '~/data/schema/module';
@@ -55,6 +56,9 @@ export class Adjustment {
     settings: Settings,
     data: Dataset,
   ): AdjustedRecipe {
+    const effectPrecision = data.flags.has('lowEffectPrecision')
+      ? lowEffectPrecision
+      : highEffectPrecision;
     const recipe = spread(
       cloneRecipe(data.recipeRecord[recipeId]) as AdjustedRecipe,
       {
@@ -531,15 +535,26 @@ export class Adjustment {
           adjustedRecipe[i].part === partId &&
           settings[i].machineId === partMachineId,
       )) {
-        adjustedRecipe[launchId].time = rocketRecipe.time
-          .mul(factor)
-          .add(rocketMachine.silo.launch);
+        let time = rocketRecipe.time.mul(factor);
+
+        if (rocketMachine.silo.buffered) {
+          if (time.lt(rocketMachine.silo.launch))
+            time = rocketMachine.silo.launch;
+        } else time = time.add(rocketMachine.silo.launch);
+
+        adjustedRecipe[launchId].time = time;
       }
 
-      rocketRecipe.time = rocketRecipe.time
-        .mul(factor)
-        .add(rocketMachine.silo.launch)
-        .div(factor);
+      let time = rocketRecipe.time.mul(factor);
+
+      if (rocketMachine.silo.buffered) {
+        if (time.lt(rocketMachine.silo.launch))
+          time = rocketMachine.silo.launch;
+      } else {
+        time = time.add(rocketMachine.silo.launch);
+      }
+
+      rocketRecipe.time = time.div(factor);
     }
 
     return adjustedRecipe;
