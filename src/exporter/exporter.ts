@@ -10,8 +10,8 @@ import { RecipesStore } from '~/state/recipes/recipes-store';
 import { SettingsStore } from '~/state/settings/settings-store';
 import { coalesce, fnPropsNotNullish, notNullish } from '~/utils/nullish';
 
-import { StepExport, StepKeys } from './step-export';
 import { BlueprintService } from './blueprint/blueprint.service';
+import { StepExport, StepKeys } from './step-export';
 
 const CSV_TYPE = 'text/csv;charset=UTF-8';
 const CSV_EXTENSION = '.csv';
@@ -47,7 +47,7 @@ export class Exporter {
   async exportToBlueprint(steps: Step[]): Promise<void> {
     const data = this.data();
     const str = await this.blueprintService.generateBlueprintFromSteps(steps, data);
-    navigator.clipboard.writeText(str);
+    await navigator.clipboard.writeText(str);
   }
 
   // istanbul ignore next: Don't test dependencies (file-saver)

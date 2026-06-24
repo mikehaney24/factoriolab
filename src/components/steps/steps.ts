@@ -15,6 +15,7 @@ import {
   faAngleRight,
   faArrowRotateLeft,
   faArrowUpRightFromSquare,
+  faCopy,
   faEyeSlash,
   faFileArrowDown,
   faLink,
@@ -22,7 +23,6 @@ import {
   faSquareCheck,
   faStopwatch,
   faTableColumns,
-  faCopy,
 } from '@fortawesome/free-solid-svg-icons';
 
 import { RatePipe } from '~/components/steps/pipes/rate-pipe';
@@ -139,7 +139,7 @@ export class Steps {
   async exportBlueprint(): Promise<void> {
     await this.exporter.exportToBlueprint(this.objectivesStore.steps());
     this.exportText.set('flow.exportBlueprintCopied');
-    setTimeout(() => this.exportText.set('flow.exportBlueprint'), 3000);
+    setTimeout(() => { this.exportText.set('flow.exportBlueprint'); }, 3000);
   }
 
   protected readonly steps = computed(() => {
