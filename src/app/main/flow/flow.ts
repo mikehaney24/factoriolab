@@ -43,9 +43,9 @@ import { FlowBuilder } from '~/flow/flow-builder';
 import { FlowData } from '~/flow/flow-data';
 import { Link } from '~/flow/link';
 import { Node } from '~/flow/node';
+import { ObjectivesStore } from '~/state/objectives/objectives-store';
 import { FlowDiagram } from '~/state/preferences/flow-diagram';
 import { FlowSettings } from '~/state/preferences/flow-settings';
-import { ObjectivesStore } from '~/state/objectives/objectives-store';
 import { PreferencesStore } from '~/state/preferences/preferences-store';
 import { SankeyAlign } from '~/state/preferences/sankey-align';
 import { coalesce } from '~/utils/nullish';
@@ -105,7 +105,7 @@ export class Flow {
   async exportBlueprint(): Promise<void> {
     await this.exporter.exportToBlueprint(this.objectivesStore.steps());
     this.exportText.set('flow.exportBlueprintCopied');
-    setTimeout(() => this.exportText.set('flow.exportBlueprint'), 3000);
+    setTimeout(() => { this.exportText.set('flow.exportBlueprint'); }, 3000);
   }
 
   async rebuildChart(

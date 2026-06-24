@@ -1,9 +1,10 @@
 import { TestBed } from '@angular/core/testing';
+
+import { rational } from '~/rational/rational';
+import { Step } from '~/solver/step';
+
 import { BlueprintService } from './blueprint.service';
 import { IBlueprintData } from './blueprint-types';
-import { Step } from '~/solver/step';
-import { rational } from '~/rational/rational';
-import { Dataset } from '~/state/settings/dataset';
 
 
 // Helper to decode base64 into a Uint8Array
@@ -32,12 +33,12 @@ async function decodeFactorioBlueprint(bpString: string): Promise<IBlueprintData
     const stream = new Blob([compressedBytes as any]).stream().pipeThrough(ds);
     const uncompressedText = await new Response(stream).text();
     return JSON.parse(uncompressedText) as IBlueprintData;
-  } catch (e) {
+  } catch {
     // If zlib fails, assume it's uncompressed (Factorio 2.0 uncompressed format)
     try {
       const jsonString = new TextDecoder('utf-8').decode(compressedBytes);
       return JSON.parse(jsonString) as IBlueprintData;
-    } catch (e2) {
+    } catch {
       throw new Error('Failed to decode blueprint string (neither compressed nor valid JSON)');
     }
   }
@@ -110,7 +111,10 @@ describe('BlueprintService', () => {
           'beacon': { size: [3, 3] },
           'beacon(2)': { size: [3, 3] },
         },
-        itemRecord: {}
+        itemRecord: {
+          'iron-plate': { stack: 100 },
+          'copper-plate': { stack: 100 }
+        }
       } as any;
     });
 
@@ -132,7 +136,7 @@ describe('BlueprintService', () => {
       const steps: Step[] = [
         { id: '1', machines: rational.one, recipeId: undefined },
         { id: '2', machines: rational.one, recipeId: 'recipe', recipeSettings: undefined },
-        { id: '3', machines: rational.one, recipeId: 'recipe', recipeSettings: { machineId: undefined } as any },
+        { id: '3', machines: rational.one, recipeId: 'recipe', recipeSettings: { machineId: undefined } },
       ];
       const bp = await service.generateBlueprintFromSteps(steps, mockData);
       expect(bp).toContain('0e');
@@ -149,7 +153,7 @@ describe('BlueprintService', () => {
           recipeSettings: {
             machineId: 'assembling-machine-2(1)',
             modules: []
-          } as any
+          }
         }
       ];
 
@@ -179,7 +183,7 @@ describe('BlueprintService', () => {
               { id: 'beacon', count: rational.zero },
               { id: undefined, count: rational.one }
             ]
-          } as any
+          }
         }
       ];
 
@@ -213,7 +217,7 @@ describe('BlueprintService', () => {
               { id: 'beacon', count: rational.zero }, 
               { id: 'beacon', count: rational(20) } 
             ]
-          } as any
+          }
         },
         {
           id: '2',
@@ -225,7 +229,7 @@ describe('BlueprintService', () => {
             beacons: [
               { id: 'beacon', count: rational.zero } 
             ]
-          } as any
+          }
         },
         {
           id: '3',
@@ -236,7 +240,7 @@ describe('BlueprintService', () => {
             beacons: [
               { id: 'fake-beacon-id', count: rational(2) } 
             ]
-          } as any
+          }
         }
       ];
 
@@ -257,7 +261,7 @@ describe('BlueprintService', () => {
           recipeSettings: {
             machineId: 'assembling-machine-1',
             modules: [] // empty modules
-          } as any
+          }
         }
       ];
 
@@ -277,32 +281,9 @@ describe('BlueprintService', () => {
               { id: 'speed-module', count: rational(2) },
               { id: 'productivity-module', count: rational.one }
             ]
-          } as any
+          }
         },
-        {
-          id: '2',
-          recipeId: 'electric-mining-drill',
-          machines: rational(1),
-          parents: { '': rational.one },
-          recipeSettings: {
-            machineId: 'electric-mining-drill',
-            modules: [
-              { id: 'speed-module', count: rational(1) }
-            ]
-          } as any
-        },
-        {
-          id: '3',
-          recipeId: 'pumpjack',
-          machines: rational(1),
-          parents: { '': rational.one },
-          recipeSettings: {
-            machineId: 'pumpjack',
-            modules: [
-              { id: 'speed-module', count: rational(1) }
-            ]
-          } as any
-        },
+
         {
           id: '4',
           recipeId: 'no-size',
@@ -316,15 +297,14 @@ describe('BlueprintService', () => {
             beacons: [
               { id: 'no-size-beacon', count: rational.one, modules: [{ id: 'zero', count: rational.zero }] }
             ]
-          } as any
+          }
         }
       ];
 
       const customMockData = {
         machineRecord: {
           'lab': { size: [3, 3] },
-          'electric-mining-drill': { size: [3, 3] },
-          'pumpjack': { size: [3, 3] },
+
           'no-size': {}, // Covers falling back to size 3
         },
         beaconRecord: {
@@ -350,31 +330,39 @@ describe('BlueprintService', () => {
       expect(prodModPlan?.items?.in_inventory?.length).toBe(1);
       expect(prodModPlan?.items?.in_inventory?.[0].stack).toBe(2); // Next stack index
 
-      const drillEntity = decoded.blueprint.entities?.find(e => e.name === 'electric-mining-drill');
-      expect((drillEntity?.items as any[])?.[0].items?.in_inventory?.[0].inventory).toBe(2); // Drill inventory
+
     });
     it('should hit edge cases in step splitting and DAG layout', async () => {
       const steps: Step[] = [
+        {
+          id: 'fluid-step',
+          itemId: 'sulfuric-acid',
+          recipeId: 'sulfuric-acid',
+          machines: rational(1),
+          belts: rational(1),
+          parents: { '': rational.one },
+          recipeSettings: { machineId: 'chemical-plant' }
+        },
         {
           id: '1',
           recipeId: 'lab',
           machines: rational(1),
           parents: { '': rational.one },
-          recipeSettings: { machineId: 'lab' } as any
+          recipeSettings: { machineId: 'lab' }
         },
         {
           id: '2',
           recipeId: 'lab',
           machines: rational(1),
           parents: { '1': rational.one, 'non-existent': rational.one },
-          recipeSettings: { machineId: 'lab' } as any
+          recipeSettings: { machineId: 'lab' }
         },
         {
           id: '3',
           recipeId: 'lab',
           machines: rational(1),
           parents: { '1': rational.one },
-          recipeSettings: { machineId: 'lab' } as any
+          recipeSettings: { machineId: 'lab' }
         },
         {
           id: '4', // No recipe settings
@@ -388,14 +376,14 @@ describe('BlueprintService', () => {
           recipeId: 'lab',
           machines: rational(1),
           parents: { '': rational.one },
-          recipeSettings: { machineId: 'lab' } as any
+          recipeSettings: { machineId: 'lab' }
         },
         {
           id: '5',
           recipeId: 'lab',
           machines: rational.zero, // Zero machines
           parents: { '': rational.one },
-          recipeSettings: { machineId: 'lab' } as any
+          recipeSettings: { machineId: 'lab' }
         }
       ];
 
@@ -412,7 +400,7 @@ describe('BlueprintService', () => {
           belts: rational(1.23), // Covered: targetBelts > 0.01
           items: rational(100),
           parents: { '': rational.one },
-          recipeSettings: { machineId: 'assembling-machine-1' } as any
+          recipeSettings: { machineId: 'assembling-machine-1' }
         },
         {
           id: '2', // Target output with items only
@@ -421,7 +409,7 @@ describe('BlueprintService', () => {
           belts: rational(0), // Falls back to items
           items: rational(50), // Covered: targetStep.items fallback
           parents: { '': rational.one },
-          recipeSettings: { machineId: 'assembling-machine-1' } as any
+          recipeSettings: { machineId: 'assembling-machine-1' }
         },
         {
           id: '3', // Raw input with belts
