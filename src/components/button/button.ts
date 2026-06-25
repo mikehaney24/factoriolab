@@ -20,7 +20,7 @@ import { Ripple } from '../ripple/ripple';
 import { Rounded, roundedVariants } from '../rounding';
 
 const host = cva(
-  'relative group gap-1 cursor-pointer items-center overflow-hidden transition-colors select-none hover:bg-gray-800 focus:z-2 focus-visible:outline disabled:pointer-events-none',
+  'group gap-1 cursor-pointer items-center overflow-hidden transition-colors select-none hover:bg-gray-800 focus:z-2 focus-visible:outline disabled:pointer-events-none',
   {
     variants: {
       color: {
@@ -108,7 +108,6 @@ export class Button {
   readonly disabled = input(false);
   readonly textAlign = input<'left' | 'center' | 'right'>('center');
   readonly textParams = input<TranslateParams>();
-  readonly badge = input<string>();
 
   protected readonly alignClassMap: Record<
     'left' | 'center' | 'right',
