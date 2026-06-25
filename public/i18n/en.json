@@ -165,7 +165,7 @@
   "filter": "Filter",
   "flow": {
     "downloadAsJson": "Download as JSON",
-    "exportBlueprint": "Export Blueprint",
+    "exportBlueprint": "Export Blueprint (Beta)",
     "exportBlueprintCopied": "Copied Blueprint!",
     "flowSettings": "Flow settings"
   },
