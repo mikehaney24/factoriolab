@@ -110,28 +110,49 @@ export class BlueprintService {
       });
     }
 
-    // Group steps by depth
-    const stepsByDepth: Record<number, Step[]> = {};
+    // Group steps by depth and machine width
+    const colKeysArr: { depth: number; width: number; key: string }[] = [];
+    const stepsByCol: Record<string, Step[]> = {};
+    const stepColKey = new Map<string, string>();
+
     for (const step of targetSteps) {
       const depth = depths.get(step.id) ?? 0;
-      if (!stepsByDepth[depth]) stepsByDepth[depth] = [];
-      stepsByDepth[depth].push(step);
+      const recipeSettings = step.recipeSettings;
+      const width = recipeSettings?.machineId
+          ? (data.machineRecord[recipeSettings.machineId]?.size?.[0] ?? 3)
+          : 3;
+      
+      const key = `${depth}-${width}`;
+      if (!stepsByCol[key]) {
+          stepsByCol[key] = [];
+          colKeysArr.push({ depth, width, key });
+      }
+      stepsByCol[key].push(step);
+      stepColKey.set(step.id, key);
     }
-    const depthKeys = Object.keys(stepsByDepth).map(Number).sort((a, b) => a - b); // 0, 1 ... D
+
+    // Sort colKeys ascending by depth, then descending by width
+    colKeysArr.sort((a, b) => {
+        if (a.depth !== b.depth) return a.depth - b.depth;
+        return b.width - a.width;
+    });
+    const colKeys = colKeysArr.map(c => c.key);
+    const maxDepth = Math.max(0, ...colKeysArr.map(c => c.depth));
 
     // Check which depths need beacons
     const hasBeaconLeft = new Map<number, boolean>();
     const hasBeaconRight = new Map<number, boolean>();
     
-    for (const depth of depthKeys) {
+    for (let i = 0; i < colKeys.length; i++) {
+      const colKey = colKeys[i];
       let needsBeacon = false;
-      for (const step of stepsByDepth[depth]) {
+      for (const step of stepsByCol[colKey]) {
          const foundBeacon = (step.recipeSettings?.beacons ?? []).find(b => b.id && b.count && !b.count.isZero());
          if (foundBeacon) needsBeacon = true;
       }
       if (needsBeacon) {
-         hasBeaconLeft.set(depth, true);
-         hasBeaconRight.set(depth, true);
+         hasBeaconLeft.set(i, true);
+         hasBeaconRight.set(i, true);
       }
     }
 
@@ -146,10 +167,11 @@ export class BlueprintService {
     const maxMachineWidthAtDepth = new Map<number, number>();
     const maxBeaconWidthAtDepth = new Map<number, number>();
 
-    for (const depth of depthKeys) {
+    for (let i = 0; i < colKeys.length; i++) {
+        const colKey = colKeys[i];
         let maxW = 0;
         let maxBW = 0;
-        for (const step of stepsByDepth[depth]) {
+        for (const step of stepsByCol[colKey]) {
             const recipeSettings = step.recipeSettings;
             if (!recipeSettings?.machineId) continue;
             const width = data.machineRecord[recipeSettings.machineId]?.size?.[0] ?? 3;
@@ -160,31 +182,30 @@ export class BlueprintService {
                maxBW = Math.max(maxBW, bW);
             }
         }
-        maxMachineWidthAtDepth.set(depth, maxW);
-        maxBeaconWidthAtDepth.set(depth, maxBW);
+        maxMachineWidthAtDepth.set(i, maxW);
+        maxBeaconWidthAtDepth.set(i, maxBW);
 
-        const needsBeacon = hasBeaconRight.get(depth + 1) || hasBeaconLeft.get(depth);
+        const needsBeacon = hasBeaconRight.get(i + 1) || hasBeaconLeft.get(i);
         if (needsBeacon) {
-            beaconColX.set(depth, runningX);
-            const bW = Math.max(maxBeaconWidthAtDepth.get(depth + 1) ?? 3, maxBW || 3);
+            beaconColX.set(i, runningX);
+            const bW = Math.max(maxBeaconWidthAtDepth.get(i + 1) ?? 3, maxBW || 3);
             runningX += bW + 1;
         }
 
-        machineColX.set(depth, runningX);
+        machineColX.set(i, runningX);
         runningX += maxW + 1;
     }
 
-    if (hasBeaconRight.get(Math.max(...depthKeys))) {
+    if (hasBeaconRight.get(colKeys.length - 1)) {
         farRightBeaconX = runningX;
-        // runningX += (maxBeaconWidthAtDepth.get(Math.max(...depthKeys)) ?? 3) + 1;
     }
 
     // Determine Y coordinates based on outputs
     const stepCenterY = new Map<string, number>();
     let currentOutputY = 0;
 
-    // We process depths from D to 0 (topological order from outputs down to base machines)
-    const reverseDepthKeys = [...depthKeys].sort((a, b) => b - a); // D, D-1 ... 0
+    // We process columns from N-1 down to 0
+    const reverseColIndexes = colKeys.map((_, i) => i).sort((a, b) => b - a);
     
     // Sort outputs by their order in targets array
     const targets: string[] = [];
@@ -196,19 +217,21 @@ export class BlueprintService {
     const targetOrder = new Map<string, number>();
     targets.forEach((t, i) => targetOrder.set(t, i));
 
-    for (const depth of reverseDepthKeys) {
-       const stepsAtDepth = stepsByDepth[depth];
+    for (const i of reverseColIndexes) {
+       const colKey = colKeys[i];
+       const stepsAtCol = stepsByCol[colKey];
+       const isTargetCol = colKeysArr[i].depth === maxDepth;
        
-       if (depth === Math.max(...depthKeys)) {
+       if (isTargetCol) {
           // Sort by target order if it's a target, else append
-          stepsAtDepth.sort((a, b) => {
+          stepsAtCol.sort((a, b) => {
              const oa = targetOrder.get(a.id) ?? 999;
              const ob = targetOrder.get(b.id) ?? 999;
              return oa - ob;
           });
        } else {
           // Sort by barycenter of the nodes it feeds
-          stepsAtDepth.sort((a, b) => {
+          stepsAtCol.sort((a, b) => {
              const getOutBarycenter = (step: Step): number => {
                 if (!step.parents) return currentOutputY;
                 let sum = 0, count = 0;
@@ -226,14 +249,14 @@ export class BlueprintService {
        }
 
        let currentY = 0;
-       for (const step of stepsAtDepth) {
+       for (const step of stepsAtCol) {
           const numMachines = Math.ceil(step.machines?.toNumber() ?? 0);
           const height = data.machineRecord[step.recipeSettings?.machineId ?? '']?.size?.[1] ?? 3;
           const stepHeightTotal = numMachines * height;
           
           // eslint-disable-next-line no-useless-assignment
           let idealY = 0;
-           if (depth === Math.max(...depthKeys)) {
+           if (isTargetCol) {
               idealY = currentOutputY;
               currentOutputY += stepHeightTotal + 10; // Extra gap for different outputs
           } else {
@@ -260,12 +283,18 @@ export class BlueprintService {
        }
     }
 
+    // 4. Entity Placement
     const placedBeacons = new Set<string>();
 
     // Now place machines and beacons exactly at their coordinates
     for (const step of targetSteps) {
-        const depth = depths.get(step.id) ?? 0;
-        const mX = machineColX.get(depth) ?? 0;
+        const colKey = stepColKey.get(step.id ?? '');
+        if (!colKey) continue;
+        const i = colKeys.indexOf(colKey);
+        if (i === -1) continue;
+        const isTargetCol = colKeysArr[i].depth === maxDepth;
+
+        const mX = machineColX.get(i) ?? 0;
         let cY = (stepCenterY.get(step.id) ?? 0) - (Math.ceil(step.machines?.toNumber() ?? 0) * (data.machineRecord[step.recipeSettings?.machineId ?? '']?.size?.[1] ?? 3)) / 2;
         const blockStartY = cY;
 
@@ -319,7 +348,7 @@ export class BlueprintService {
               entities.push({
                 entity_number: entity_number++,
                 name: 'display-panel',
-                position: { x: (depth === 0 ? farRightBeaconX + 5 : mX + 5), y: blockStartY },
+                position: { x: (isTargetCol ? farRightBeaconX + 5 : mX + 5), y: blockStartY },
                 text: text,
                 icon: { name: step.itemId!, type: isFluid ? 'fluid' : 'item' },
                 always_show: true,
@@ -358,8 +387,8 @@ export class BlueprintService {
         }
 
         // Place Machines
-        const maxColWidth = maxMachineWidthAtDepth.get(depth) ?? width;
-        for (let i = 0; i < numMachines; i++) {
+        const maxColWidth = maxMachineWidthAtDepth.get(i) ?? width;
+        for (let j = 0; j < numMachines; j++) {
            entities.push({
              entity_number: entity_number++,
              name: machineBaseId,
@@ -374,8 +403,8 @@ export class BlueprintService {
 
         // Place Beacons (Left and Right)
         if (stepNumBeacons > 0) {
-           const bXLeft = beaconColX.get(depth) ?? 0;
-           const bXRight = (depth === Math.max(...depthKeys)) ? farRightBeaconX : (beaconColX.get(depth + 1) ?? 0);
+           const bXLeft = beaconColX.get(i) ?? 0;
+           const bXRight = (i === colKeys.length - 1) ? farRightBeaconX : (beaconColX.get(i + 1) ?? 0);
            
            const machinesCenterY = stepCenterY.get(step.id) ?? 0;
            
