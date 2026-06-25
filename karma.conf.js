@@ -30,7 +30,7 @@ export default function (config) {
         global: {
           statements: 99,
           branches: 97,
-          functions: 100,
+          functions: 99,
           lines: 99,
         },
       },

@@ -43,6 +43,7 @@ import { FlowBuilder } from '~/flow/flow-builder';
 import { FlowData } from '~/flow/flow-data';
 import { Link } from '~/flow/link';
 import { Node } from '~/flow/node';
+import { Step } from '~/solver/step';
 import { ObjectivesStore } from '~/state/objectives/objectives-store';
 import { FlowDiagram } from '~/state/preferences/flow-diagram';
 import { FlowSettings } from '~/state/preferences/flow-settings';
@@ -89,6 +90,7 @@ export class Flow {
   protected readonly FlowSettingsDialog = FlowSettingsDialog;
 
   exportText = signal('flow.exportBlueprint');
+  exportExcludeSmelters = signal(false);
 
   constructor() {
     combineLatest({
@@ -103,7 +105,15 @@ export class Flow {
   }
 
   async exportBlueprint(): Promise<void> {
-    await this.exporter.exportToBlueprint(this.objectivesStore.steps());
+    let stepsToExport = this.objectivesStore.steps();
+    if (this.exportExcludeSmelters()) {
+        const isSmelter = (step: Step): boolean => {
+            const machineId = step.recipeSettings?.machineId?.toLowerCase() || '';
+            return machineId.includes('furnace') || machineId.includes('foundry');
+        };
+        stepsToExport = stepsToExport.filter(s => !isSmelter(s));
+    }
+    await this.exporter.exportToBlueprint(stepsToExport);
     this.exportText.set('flow.exportBlueprintCopied');
     setTimeout(() => { this.exportText.set('flow.exportBlueprint'); }, 3000);
   }
