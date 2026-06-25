@@ -135,9 +135,18 @@ export class Steps {
 
   protected readonly expandedSteps = signal<Set<string>>(new Set());
   exportText = signal('flow.exportBlueprint');
+  exportExcludeSmelters = signal(false);
 
   async exportBlueprint(): Promise<void> {
-    await this.exporter.exportToBlueprint(this.objectivesStore.steps());
+    let stepsToExport = this.objectivesStore.steps();
+    if (this.exportExcludeSmelters()) {
+        const isSmelter = (step: Step): boolean => {
+            const machineId = step.recipeSettings?.machineId?.toLowerCase() || '';
+            return machineId.includes('furnace') || machineId.includes('foundry');
+        };
+        stepsToExport = stepsToExport.filter(s => !isSmelter(s));
+    }
+    await this.exporter.exportToBlueprint(stepsToExport);
     this.exportText.set('flow.exportBlueprintCopied');
     setTimeout(() => { this.exportText.set('flow.exportBlueprint'); }, 3000);
   }
