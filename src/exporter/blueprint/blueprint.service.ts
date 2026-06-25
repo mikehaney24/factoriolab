@@ -358,11 +358,12 @@ export class BlueprintService {
         }
 
         // Place Machines
+        const maxColWidth = maxMachineWidthAtDepth.get(depth) ?? width;
         for (let i = 0; i < numMachines; i++) {
            entities.push({
              entity_number: entity_number++,
              name: machineBaseId,
-             position: { x: mX + width / 2, y: cY + height / 2 },
+             position: { x: mX + maxColWidth / 2, y: cY + height / 2 },
              recipe: recipeBaseId,
              recipe_quality: getQualityString(recipeQualityLevel),
              quality: getQualityString(machineQualityLevel),
