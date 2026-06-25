@@ -167,16 +167,16 @@ export class BlueprintService {
         if (needsBeacon) {
             beaconColX.set(depth, runningX);
             const bW = Math.max(maxBeaconWidthAtDepth.get(depth + 1) ?? 3, maxBW || 3);
-            runningX += bW + 2;
+            runningX += bW + 1;
         }
 
         machineColX.set(depth, runningX);
-        runningX += maxW + 2;
+        runningX += maxW + 1;
     }
 
-    if (hasBeaconRight.get(0)) {
+    if (hasBeaconRight.get(Math.max(...depthKeys))) {
         farRightBeaconX = runningX;
-        // runningX += (maxBeaconWidthAtDepth.get(0) ?? 3) + 2;
+        // runningX += (maxBeaconWidthAtDepth.get(Math.max(...depthKeys)) ?? 3) + 1;
     }
 
     // Determine Y coordinates based on outputs
@@ -375,7 +375,7 @@ export class BlueprintService {
         // Place Beacons (Left and Right)
         if (stepNumBeacons > 0) {
            const bXLeft = beaconColX.get(depth) ?? 0;
-           const bXRight = (depth === Math.max(...depthKeys)) ? farRightBeaconX : (beaconColX.get(depth - 1) ?? 0);
+           const bXRight = (depth === Math.max(...depthKeys)) ? farRightBeaconX : (beaconColX.get(depth + 1) ?? 0);
            
            const machinesCenterY = stepCenterY.get(step.id) ?? 0;
            
