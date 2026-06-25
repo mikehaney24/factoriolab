@@ -83,11 +83,112 @@ export class BlueprintService {
        }
     }
 
-    // 3. Grid Layout Setup
     const isGatherer = (step: Step): boolean => {
        const machineId = step.recipeSettings?.machineId?.toLowerCase() || '';
        return machineId.includes('mining-drill') || machineId.includes('pumpjack') || machineId.includes('offshore-pump');
     };
+
+    // --- HORIZONTAL COMPRESSION PASS ---
+    const consumersOf = new Map<string, string[]>();
+    for (const step of steps) {
+      if (step.id) consumersOf.set(step.id, []);
+    }
+    for (const [consumer, producers] of incomingEdges.entries()) {
+        for (const producer of producers) {
+            let arr = consumersOf.get(producer);
+            if (!arr) {
+                arr = [];
+                consumersOf.set(producer, arr);
+            }
+            arr.push(consumer);
+        }
+    }
+
+    let globalMaxDepth = 0;
+    for (const d of depths.values()) {
+        globalMaxDepth = Math.max(globalMaxDepth, d);
+    }
+
+    const getMachineWidth = (id: string): number => {
+        const step = stepMap.get(id);
+        if (!step?.recipeSettings?.machineId) return 3;
+        return data.machineRecord[step.recipeSettings.machineId]?.size?.[0] ?? 3;
+    };
+
+    const countMap = new Map<string, number>();
+    for (const [id, depth] of depths.entries()) {
+        const step = stepMap.get(id);
+        if (!step?.machines || step.machines.isZero() || isGatherer(step)) continue;
+        const width = getMachineWidth(id);
+        const key = `${depth}_${width}`;
+        countMap.set(key, (countMap.get(key) ?? 0) + 1);
+    }
+
+    let changed = true;
+    let iterations = 0;
+    while (changed && iterations < 100) {
+        changed = false;
+        iterations++;
+        
+        for (const step of steps) {
+            if (!step.id || !step.machines || step.machines.isZero() || isGatherer(step)) continue;
+            
+            const u = step.id;
+            const width = getMachineWidth(u);
+            const currentDepth = depths.get(u) ?? 0;
+            
+            let min_d = 0;
+            const producers = incomingEdges.get(u) ?? [];
+            for (const p of producers) {
+                min_d = Math.max(min_d, (depths.get(p) ?? 0) + 1);
+            }
+            
+            let max_d = globalMaxDepth;
+            const consumers = consumersOf.get(u) ?? [];
+            for (const v of consumers) {
+                max_d = Math.min(max_d, (depths.get(v) ?? globalMaxDepth) - 1);
+            }
+            
+            if (min_d > max_d) continue;
+            
+            let best_d = currentDepth;
+            let current_count = countMap.get(`${currentDepth}_${width}`) ?? 0;
+            
+            if (consumers.length === 0) {
+                if (currentDepth !== max_d) {
+                    best_d = max_d;
+                }
+            } else {
+                for (let test_d = min_d; test_d <= max_d; test_d++) {
+                    if (test_d === currentDepth) continue;
+                    const test_count = countMap.get(`${test_d}_${width}`) ?? 0;
+                    
+                    let shouldMove = false;
+                    if (current_count <= 2 && test_count > 0) {
+                        shouldMove = true;
+                    } else if (test_count > current_count) {
+                        shouldMove = true;
+                    }
+                    
+                    if (shouldMove) {
+                        best_d = test_d;
+                        current_count = test_count + 1;
+                    }
+                }
+            }
+            
+            if (best_d !== currentDepth) {
+                const oldKey = `${currentDepth}_${width}`;
+                const newKey = `${best_d}_${width}`;
+                countMap.set(oldKey, (countMap.get(oldKey) ?? 1) - 1);
+                countMap.set(newKey, (countMap.get(newKey) ?? 0) + 1);
+                depths.set(u, best_d);
+                changed = true;
+            }
+        }
+    }
+
+    // 3. Grid Layout Setup
 
     const targetSteps: Step[] = [];
     for (const step of steps) {
