@@ -8,14 +8,20 @@
   ></button>
   @let _flowData = flowBuilder.flowData();
   @if (_flowData && _flowData.nodes.length) {
-    <button
-      type="button"
-      labButton
-      [faIcon]="faCopy"
-      [text]="exportText()"
-      badge="EXPERIMENTAL"
-      (click)="exportBlueprint()"
-    ></button>
+    <div class="relative mr-4">
+      <button
+        type="button"
+        labButton
+        [faIcon]="faCopy"
+        [text]="exportText()"
+        (click)="exportBlueprint()"
+      ></button>
+      <div
+        class="pointer-events-none absolute -right-[16px] -top-[6px] rotate-[30deg] rounded bg-amber-600 px-1 py-0.5 text-center text-[10px] font-bold text-white shadow-sm"
+      >
+        EXPERIMENTAL
+      </div>
+    </div>
     <button
       type="button"
       labButton
