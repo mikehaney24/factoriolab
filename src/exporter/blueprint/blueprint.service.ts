@@ -248,7 +248,8 @@ export class BlueprintService {
           });
        }
 
-       let currentY = 0;
+       const blocks: { steps: { step: Step; idealY: number; height: number }[] }[] = [];
+
        for (const step of stepsAtCol) {
           const numMachines = Math.ceil(step.machines?.toNumber() ?? 0);
           const height = data.machineRecord[step.recipeSettings?.machineId ?? '']?.size?.[1] ?? 3;
@@ -256,7 +257,7 @@ export class BlueprintService {
           
           // eslint-disable-next-line no-useless-assignment
           let idealY = 0;
-           if (isTargetCol) {
+          if (isTargetCol) {
               idealY = currentOutputY;
               currentOutputY += stepHeightTotal + 10; // Extra gap for different outputs
           } else {
@@ -274,12 +275,53 @@ export class BlueprintService {
              idealY = bary - stepHeightTotal / 2;
           }
 
-          currentY = Math.max(currentY, idealY);
-
-          // Step will start at currentY
-          stepCenterY.set(step.id, currentY + stepHeightTotal / 2);
+          let b = { steps: [{ step, idealY, height: stepHeightTotal }] };
           
-          currentY += stepHeightTotal + 2; // 2 tile gap
+          while (blocks.length > 0) {
+              const prev = blocks[blocks.length - 1];
+              
+              let prevSum = 0;
+              let prevOffset = 0;
+              for (const s of prev.steps) {
+                  prevSum += s.idealY - prevOffset;
+                  prevOffset += s.height + 2;
+              }
+              const prevStartY = prevSum / prev.steps.length;
+              
+              let bSum = 0;
+              let bOffset = 0;
+              for (const s of b.steps) {
+                  bSum += s.idealY - bOffset;
+                  bOffset += s.height + 2;
+              }
+              const bStartY = bSum / b.steps.length;
+              
+              if (prevStartY + prevOffset > bStartY + 0.001) {
+                  prev.steps.push(...b.steps);
+                  blocks.pop();
+                  b = prev;
+              } else {
+                  break;
+              }
+          }
+          blocks.push(b);
+       }
+
+       for (const b of blocks) {
+           let sum = 0;
+           let offset = 0;
+           for (const s of b.steps) {
+               sum += s.idealY - offset;
+               offset += s.height + 2;
+           }
+           let currentY = sum / b.steps.length;
+           
+           for (const s of b.steps) {
+               if (s.step.id) {
+                   stepCenterY.set(s.step.id, currentY + s.height / 2);
+               }
+               currentY += s.height + 2;
+           }
        }
     }
 
