@@ -8,20 +8,13 @@
   ></button>
   @if (objectivesStore.steps().length) {
     <div class="mr-4 flex items-center gap-2">
-      <div class="relative">
-        <button
-          type="button"
-          labButton
-          [faIcon]="faCopy"
-          [text]="exportText()"
-          (click)="exportBlueprint()"
-        ></button>
-        <div
-          class="pointer-events-none absolute -right-[14px] top-[2px] z-10 rotate-12 whitespace-nowrap rounded bg-amber-600 px-1.5 py-0.5 text-center text-[9px] font-bold tracking-widest text-white opacity-50 shadow-sm"
-        >
-          EXPERIMENTAL
-        </div>
-      </div>
+      <button
+        type="button"
+        labButton
+        [faIcon]="faCopy"
+        [text]="exportText()"
+        (click)="exportBlueprint()"
+      ></button>
       <label class="ms-2 flex items-center gap-1 whitespace-nowrap text-sm">
         <input type="checkbox" [checked]="exportExcludeSmelters()" (change)="exportExcludeSmelters.set(!exportExcludeSmelters())" />
         No Smelters
