@@ -408,6 +408,7 @@ export class BlueprintService {
           blocks.push(b);
        }
 
+       let floorY = 0;
        for (const b of blocks) {
            let sum = 0;
            let offset = 0;
@@ -417,12 +418,16 @@ export class BlueprintService {
            }
            let currentY = sum / b.steps.length;
            
+           currentY = Math.max(floorY, currentY);
+           
            for (const s of b.steps) {
                if (s.step.id) {
                    stepCenterY.set(s.step.id, currentY + s.height / 2);
                }
                currentY += s.height + 2;
            }
+           
+           floorY = currentY;
        }
     }
 
