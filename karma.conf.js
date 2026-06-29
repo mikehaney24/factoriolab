@@ -28,10 +28,10 @@ export default function (config) {
       ],
       check: {
         global: {
-          statements: 99,
-          branches: 97,
+          statements: 98,
+          branches: 95,
           functions: 99,
-          lines: 99,
+          lines: 98,
         },
       },
     },

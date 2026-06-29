@@ -37,9 +37,151 @@ export class BlueprintService {
     return '0' + btoa(binaryString);
   }
 
-  async generateBlueprintFromSteps(steps: Step[], data: Dataset): Promise<string> {
+  async generateBlueprintFromSteps(steps: Step[], data: Dataset, isSpacePlatformLayout = false): Promise<string> {
     const entities: IEntity[] = [];
     let entity_number = 1;
+
+    if (isSpacePlatformLayout) {
+        interface ItemToPlace {
+            baseId: string;
+            qualityLevel: number;
+            width: number;
+            height: number;
+            count: number;
+            recipeBaseId?: string;
+            recipeQualityLevel?: number;
+            modulesPlan: BlueprintInsertPlan[];
+        }
+        const itemsToPlace: ItemToPlace[] = [];
+        let totalArea = 0;
+        
+        const isGatherer = (step: Step): boolean => {
+           const machineId = step.recipeSettings?.machineId?.toLowerCase() || '';
+           return machineId.includes('mining-drill') || machineId.includes('pumpjack') || machineId.includes('offshore-pump');
+        };
+
+        for (const step of steps) {
+            if (!step.id || step.machines == null || step.machines.isZero() || isGatherer(step)) continue;
+            const recipeId = step.recipeId;
+            const recipeSettings = step.recipeSettings;
+            if (!recipeId || !recipeSettings?.machineId) continue;
+            
+            const machineIdStr = recipeSettings.machineId;
+            const machineRecord = data.machineRecord[machineIdStr];
+            if (!machineRecord) continue;
+            
+            let width = 3, height = 3;
+            if (machineRecord.size) {
+                width = machineRecord.size[0];
+                height = machineRecord.size[1];
+            }
+            const count = Math.ceil(step.machines.toNumber());
+            if (count <= 0) continue;
+
+            const { baseId: machineBaseId, level: machineQualityLevel } = this.parseQualityId(machineIdStr);
+            const { baseId: recipeBaseId, level: recipeQualityLevel } = this.parseQualityId(recipeId);
+            const machineModulesPlan = this.generateInsertPlan(recipeSettings.modules, recipeSettings.machineId) ?? [];
+
+            itemsToPlace.push({
+                baseId: machineBaseId,
+                qualityLevel: machineQualityLevel ?? 0,
+                width, height, count,
+                recipeBaseId, recipeQualityLevel,
+                modulesPlan: machineModulesPlan
+            });
+            totalArea += count * width * height;
+
+            const beacons = recipeSettings.beacons ?? [];
+            const foundBeacon = beacons.find(b => b.id && b.count && !b.count.isZero());
+            if (foundBeacon?.id) {
+                const stepNumBeacons = Math.ceil((foundBeacon.total ?? foundBeacon.count ?? rational.zero).toNumber());
+                if (stepNumBeacons > 0) {
+                    const beaconRecord = data.beaconRecord[foundBeacon.id];
+                    if (beaconRecord) {
+                        const bWidth = beaconRecord.size?.[0] ?? 3;
+                        const bHeight = beaconRecord.size?.[1] ?? 3;
+                        const { baseId: beaconBaseId, level: beaconQualityLevel } = this.parseQualityId(foundBeacon.id);
+                        const beaconModulesPlan = this.generateInsertPlan(foundBeacon.modules, foundBeacon.id) ?? [];
+                        
+                        itemsToPlace.push({
+                            baseId: beaconBaseId,
+                            qualityLevel: beaconQualityLevel ?? 0,
+                            width: bWidth, height: bHeight, count: stepNumBeacons,
+                            modulesPlan: beaconModulesPlan
+                        });
+                        totalArea += stepNumBeacons * bWidth * bHeight;
+                    }
+                }
+            }
+        }
+
+        if (itemsToPlace.length === 0) {
+            return this.encodeBlueprintString({
+                blueprint: {
+                    version: FACTORIO_2_1_VERSION,
+                    item: 'blueprint',
+                    label: 'FactorioLab Export',
+                    icons: [],
+                    entities: [],
+                },
+            });
+        }
+
+        itemsToPlace.sort((a, b) => (b.width * b.height) - (a.width * a.height));
+        const targetWidth = Math.ceil(Math.sqrt(totalArea) * 1.2);
+        let currentX = 0;
+        let currentY = 0;
+        let rowHeight = 0;
+        
+        for (const item of itemsToPlace) {
+            for (let i = 0; i < item.count; i++) {
+                if (currentX + item.width > targetWidth && currentX > 0) {
+                    currentX = 0;
+                    currentY += rowHeight;
+                    rowHeight = 0;
+                }
+                
+                const center_x = currentX + item.width / 2;
+                const center_y = currentY + item.height / 2;
+                
+                const entity: IEntity = {
+                    entity_number: entity_number++,
+                    name: item.baseId,
+                    position: { x: center_x, y: center_y },
+                    quality: getQualityString(item.qualityLevel),
+                    items: item.modulesPlan,
+                };
+                if (item.recipeBaseId) {
+                    entity.recipe = item.recipeBaseId;
+                    entity.recipe_quality = getQualityString(item.recipeQualityLevel ?? 0);
+                }
+                entities.push(entity);
+                
+                currentX += item.width;
+                rowHeight = Math.max(rowHeight, item.height);
+            }
+        }
+
+        const icons: IIcon[] = [];
+        const mainIconItem = steps.find(s => s.output?.gt(rational.zero))?.itemId ?? steps[0]?.itemId;
+        if (mainIconItem) {
+            const { baseId: iconBaseId } = this.parseQualityId(mainIconItem);
+            icons.push({
+                index: 1,
+                signal: { type: !data.itemRecord[mainIconItem]?.stack ? 'fluid' : 'item', name: iconBaseId }
+            });
+        }
+
+        return this.encodeBlueprintString({
+            blueprint: {
+                version: FACTORIO_2_1_VERSION,
+                item: 'blueprint',
+                label: 'FactorioLab Export',
+                icons,
+                entities,
+            },
+        });
+    }
 
     // 1. Build Adjacency List for DAG depth calculation
     const incomingEdges = new Map<string, string[]>();
