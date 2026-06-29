@@ -46,7 +46,9 @@ export class Exporter {
 
   async exportToBlueprint(steps: Step[]): Promise<void> {
     const data = this.data();
-    const str = await this.blueprintService.generateBlueprintFromSteps(steps, data);
+    const locationIds = this.settingsStore.settings().locationIds;
+    const isSpacePlatformLayout = locationIds.size === 1 && locationIds.has('space-platform');
+    const str = await this.blueprintService.generateBlueprintFromSteps(steps, data, isSpacePlatformLayout);
     await navigator.clipboard.writeText(str);
   }
 
