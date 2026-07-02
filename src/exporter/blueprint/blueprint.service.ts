@@ -111,8 +111,9 @@ export class BlueprintService {
 
     const getMachineWidth = (id: string): number => {
         const step = stepMap.get(id);
-        if (!step?.recipeSettings?.machineId) return 3;
-        return data.machineRecord[step.recipeSettings.machineId]?.size?.[0] ?? 3;
+        const machineId = step?.recipeSettings?.machineId;
+        if (!machineId) return 3;
+        return this.getMachineSize(machineId, data)[0];
     };
 
     const countMap = new Map<string, number>();
@@ -220,7 +221,7 @@ export class BlueprintService {
       const depth = depths.get(step.id) ?? 0;
       const recipeSettings = step.recipeSettings;
       const width = recipeSettings?.machineId
-          ? (data.machineRecord[recipeSettings.machineId]?.size?.[0] ?? 3)
+          ? (this.getMachineSize(recipeSettings.machineId, data)[0])
           : 3;
       
       const key = `${depth}-${width}`;
@@ -275,7 +276,7 @@ export class BlueprintService {
         for (const step of stepsByCol[colKey]) {
             const recipeSettings = step.recipeSettings;
             if (!recipeSettings?.machineId) continue;
-            const width = data.machineRecord[recipeSettings.machineId]?.size?.[0] ?? 3;
+            const width = this.getMachineSize(recipeSettings.machineId, data)[0];
             maxW = Math.max(maxW, width);
             const foundBeacon = (recipeSettings.beacons ?? []).find(b => b.id && b.count && !b.count.isZero());
             if (foundBeacon?.id) {
@@ -355,7 +356,7 @@ export class BlueprintService {
 
        for (const step of stepsAtCol) {
           const numMachines = Math.ceil(step.machines?.toNumber() ?? 0);
-          const height = data.machineRecord[step.recipeSettings?.machineId ?? '']?.size?.[1] ?? 3;
+          const height = this.getMachineSize(step.recipeSettings?.machineId ?? '', data)[1];
           const stepHeightTotal = numMachines * height;
           
           // eslint-disable-next-line no-useless-assignment
@@ -445,7 +446,7 @@ export class BlueprintService {
         const isTargetCol = colKeysArr[i].depth === maxDepth;
 
         const mX = machineColX.get(i) ?? 0;
-        let cY = (stepCenterY.get(step.id) ?? 0) - (Math.ceil(step.machines?.toNumber() ?? 0) * (data.machineRecord[step.recipeSettings?.machineId ?? '']?.size?.[1] ?? 3)) / 2;
+        let cY = (stepCenterY.get(step.id) ?? 0) - (Math.ceil(step.machines?.toNumber() ?? 0) * (this.getMachineSize(step.recipeSettings?.machineId ?? '', data)[1])) / 2;
         const blockStartY = cY;
 
         const recipeId = step.recipeId;
@@ -454,9 +455,7 @@ export class BlueprintService {
 
         const machineIdStr = recipeSettings.machineId;
         const { baseId: machineBaseId, level: machineQualityLevel } = this.parseQualityId(machineIdStr);
-        const machineRecord = data.machineRecord[machineIdStr];
-        const width = machineRecord?.size?.[0] ?? 3;
-        const height = machineRecord?.size?.[1] ?? 3;
+        const [width, height] = this.getMachineSize(machineIdStr, data);
 
         const numMachines = Math.ceil(step.machines?.toNumber() ?? 0);
         const { baseId: recipeBaseId, level: recipeQualityLevel } = this.parseQualityId(recipeId);
@@ -539,7 +538,7 @@ export class BlueprintService {
         // Place Machines
         const maxColWidth = maxMachineWidthAtDepth.get(i) ?? width;
         for (let j = 0; j < numMachines; j++) {
-           entities.push({
+           const entity: IEntity = {
              entity_number: entity_number++,
              name: machineBaseId,
              position: { x: mX + maxColWidth / 2, y: cY + height / 2 },
@@ -547,7 +546,11 @@ export class BlueprintService {
              recipe_quality: getQualityString(recipeQualityLevel),
              quality: getQualityString(machineQualityLevel),
              items: machineModulesPlan,
-           });
+           };
+           if (machineIdStr.toLowerCase().includes('crusher')) {
+             entity.direction = 2; // East (90 degrees)
+           }
+           entities.push(entity);
            cY += height;
         }
 
@@ -623,6 +626,16 @@ export class BlueprintService {
       return { baseId: match[1], level: parseInt(match[2], 10) };
     }
     return { baseId: id };
+  }
+
+  private getMachineSize(machineId: string, data: Dataset): [number, number] {
+    const record = data.machineRecord[machineId];
+    let w = record?.size?.[0] ?? 3;
+    let h = record?.size?.[1] ?? 3;
+    if (machineId.toLowerCase().includes('crusher')) {
+      const temp = w; w = h; h = temp;
+    }
+    return [w, h];
   }
 
   private generateInsertPlan(modules: { id?: string, count?: { isZero: () => boolean, toNumber: () => number } }[] | undefined, entityId: string): BlueprintInsertPlan[] | undefined {
