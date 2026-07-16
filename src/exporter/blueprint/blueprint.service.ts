@@ -548,7 +548,7 @@ export class BlueprintService {
              items: machineModulesPlan,
            };
            if (machineIdStr.toLowerCase().includes('crusher')) {
-             entity.direction = 2; // East (90 degrees)
+              entity.direction = 4; // Factorio 2.0 East
            }
            entities.push(entity);
            cY += height;
