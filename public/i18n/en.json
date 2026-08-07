@@ -8,9 +8,9 @@
     "migrationWarning": "Migration warning",
     "simplexSolved": "Solved, {{ time }}ms, cost: {{ cost }}",
     "updateAvailable": "Update available",
-    "updateAvailableMessage": "An update is available. Would you like to reload the page to update?",
+    "updateAvailableMessage": "<div>An update is available. Would you like to reload the page to update?</div><a href=\"https://github.com/factoriolab/factoriolab/releases\" target=\"_blank\" class=\"link\">View release notes</a>",
     "updateRequired": "Update required",
-    "updateRequiredMessage": "An update is available, and the page must be reloaded to proceed."
+    "updateRequiredMessage": "<div>An update is available, and the page must be reloaded to proceed.</div><a href=\"https://github.com/factoriolab/factoriolab/releases\" target=\"_blank\" class=\"link\">View release notes</a>"
   },
   "beaconsSelect": {
     "addBeacons": "Add beacons",
@@ -294,6 +294,10 @@
       "starRupture": "StarRupture",
       "techtonica": "Techtonica"
     },
+    "glpkAlgorithm": {
+      "exact": "Exact",
+      "simplex": "Simplex (Default)"
+    },
     "linkValue": {
       "belts": "Belts",
       "items": "Items",
@@ -408,6 +412,7 @@
     "createSavedState": "Create new",
     "deleteSavedState": "Delete",
     "editSavedState": "Rename",
+    "glpkAlgorithm": "GLPK Algorithm",
     "header": "Preferences",
     "helpTranslate": "Help translate",
     "hide": "Hide preferences panel",
@@ -490,6 +495,7 @@
     "proliferatorSelfSpray": "Proliferator self-spray",
     "proliferatorSelfSprayTooltip": "Select the proliferator spray applied to proliferator itself",
     "queryParamsPlaceholder": "Paste query parameters",
+    "recipeCostMultiplier": "Recipe cost multiplier",
     "recipeProductivity": "Recipe productivity bonuses",
     "recipeProductivityTooltip": "Click to set productivity bonuses for recipes upgraded by technology",
     "recipesExcluded": "{{ count }} recipes excluded",
