@@ -8,9 +8,9 @@
     "migrationWarning": "Aviso de migração",
     "simplexSolved": "Resolvido, {{ time }}ms, custo: {{ cost }}",
     "updateAvailable": "Atualização disponível",
-    "updateAvailableMessage": "Uma atualização está disponível. Deseja recarregar a página para atualizar?",
+    "updateAvailableMessage": "<div>Uma atualização está disponível. Deseja recarregar a página para atualizar?</div><a href=\"https://github.com/factoriolab/factoriolab/releases\" target=\"_blank\" class=\"link\">Ver notas de lançamento</a>",
     "updateRequired": "Atualização necessária",
-    "updateRequiredMessage": "Uma atualização está disponível, e a página deve ser recarregada para continuar."
+    "updateRequiredMessage": "<div>Uma atualização está disponível, e a página deve ser recarregada para continuar.</div><a href=\"https://github.com/factoriolab/factoriolab/releases\" target=\"_blank\" class=\"link\">Ver notas de lançamento</a>"
   },
   "beaconsSelect": {
     "addBeacons": "Add beacons",
@@ -292,6 +292,10 @@
       "starRupture": "StarRupture",
       "techtonica": "Techtonica"
     },
+    "glpkAlgorithm": {
+      "exact": "Exact",
+      "simplex": "Simplex (Default)"
+    },
     "linkValue": {
       "belts": "Esteiras",
       "items": "Itens",
@@ -406,6 +410,7 @@
     "createSavedState": "Create new",
     "deleteSavedState": "Delete",
     "editSavedState": "Rename",
+    "glpkAlgorithm": "GLPK Algorithm",
     "header": "Preferences",
     "helpTranslate": "Help translate",
     "hide": "Hide preferences panel",

@@ -1,6 +1,6 @@
 import { Rational, rational } from '~/rational/rational';
 import { spread } from '~/utils/object';
-import { cloneRecord, toRationalRecord } from '~/utils/record';
+import { cloneRecord, toRationalRecord, toRecordEntries } from '~/utils/record';
 
 import { ItemJson } from './item';
 import { ModuleEffect } from './module';
@@ -12,6 +12,8 @@ export type RecipeFlag =
   | 'burn'
   | 'recycling'
   | 'locked'
+  /** Unaffected by Satisfactory recipe cost multiplier (e.g. fluid packaging) */
+  | 'noCostMultiplier'
   /** Treats machines required as a percentage instead of a number */
   | 'infinite'
   /** Even if there are no producers, show the machine quantity */
@@ -49,10 +51,10 @@ export interface Recipe {
   row: number;
   time: Rational;
   producers?: string[];
-  in: Record<string, Rational>;
-  out: Record<string, Rational>;
+  in: Partial<Record<string, Rational>>;
+  out: Partial<Record<string, Rational>>;
   /** Denotes amount of output that is not affected by productivity */
-  catalyst?: Record<string, Rational>;
+  catalyst?: Partial<Record<string, Rational>>;
   cost?: Rational;
   /** If recipe is a rocket launch, indicates the rocket part recipe used */
   part?: string;
@@ -107,9 +109,7 @@ export interface AdjustedRecipe extends Recipe {
 }
 
 export function finalizeRecipe(recipe: AdjustedRecipe): void {
-  for (const outId of Object.keys(recipe.out)) {
-    const output = recipe.out[outId];
-
+  for (const [outId, output] of toRecordEntries(recipe.out)) {
     if (
       output.gt(rational.zero) &&
       (recipe.in[outId] == null || recipe.in[outId].lt(output))
@@ -121,10 +121,9 @@ export function finalizeRecipe(recipe: AdjustedRecipe): void {
       .div(recipe.time);
   }
 
-  for (const inId of Object.keys(recipe.in).filter(
-    (i) => recipe.out[i] == null,
+  for (const [inId, input] of toRecordEntries(recipe.in).filter(
+    ([key]) => recipe.out[key] == null,
   )) {
-    const input = recipe.in[inId];
     recipe.output[inId] = input.inverse().div(recipe.time);
   }
 }

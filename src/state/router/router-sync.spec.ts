@@ -4,6 +4,7 @@ import { ActivatedRoute, Params } from '@angular/router';
 import { of, Subject } from 'rxjs';
 
 import { Confirm } from '~/components/confirm/confirm';
+import { DEFAULT_MOD } from '~/data/datasets';
 import { rational } from '~/rational/rational';
 import { ItemId } from '~/tests/item-id';
 import { mockModData, mockModHash } from '~/tests/mocks/data';
@@ -91,6 +92,7 @@ const mockSettingsState: SettingsState = {
   flowRate: rational(1200n),
   excludedRecipeIds: new Set([RecipeId.SteelChest]),
   checkedRecipeIds: new Set([RecipeId.SteelChest]),
+  recipeCostMultiplier: rational(1n),
   netProductionOnly: true,
   preset: Preset.Modules,
   machineRankIds: [ItemId.AssemblingMachine2, ItemId.SteelFurnace],
@@ -266,11 +268,15 @@ describe('RouterSync', () => {
   });
 
   it('should update state from route', async () => {
+    spyOn(service['settingsStore'], 'apply');
     spyOn(service, 'updateState');
     (service as any).modData = of(mockModData);
     (service as any).modHash = of(mockModHash);
     mockRoute.next({}, {});
     await TestBed.inject(ApplicationRef).whenStable();
+    expect(service['settingsStore'].apply).toHaveBeenCalledWith({
+      modId: DEFAULT_MOD,
+    });
     expect(service.updateState).toHaveBeenCalled();
   });
 
@@ -458,6 +464,7 @@ describe('RouterSync', () => {
     delete mockStateV10.settingsState?.requireMachinesOutput;
     delete mockStateV10.settingsState?.costs?.footprint;
     delete mockStateV10.settingsState?.costs?.recycling;
+    delete mockStateV10.settingsState?.recipeCostMultiplier;
 
     const mockStateV8: PartialState = spread(mockStateV10, {
       settingsState: spread(mockStateV10.settingsState),
@@ -499,6 +506,8 @@ describe('RouterSync', () => {
 
     beforeEach(() => {
       dispatch = spyOn(service, 'dispatch');
+      spyOn(service['appRef'], 'tick');
+      spyOn(service['settingsStore'], 'apply');
     });
 
     it('should skip if loading empty, current state', () => {

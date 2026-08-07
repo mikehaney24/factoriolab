@@ -10,13 +10,12 @@ import { IconType } from '~/data/icon-type';
 import { baseId } from '~/data/schema/quality';
 import { Option } from '~/option/option';
 import { Rational, rational } from '~/rational/rational';
-import { sortedKeyValues } from '~/rational/sorted-key-values';
 import { Solver } from '~/solver/solver';
 import { Step } from '~/solver/step';
 import { TranslateParams } from '~/translate/translate';
 import { coalesce, notNullish } from '~/utils/nullish';
 import { spread } from '~/utils/object';
-import { toRecord } from '~/utils/record';
+import { sortedKeyValues, toRecord } from '~/utils/record';
 
 import { Adjustment } from '../adjustment';
 import { ItemsStore } from '../items/items-store';
@@ -95,8 +94,9 @@ export class ObjectivesStore extends RecordStore<ObjectiveState> {
     const settings = this.settingsStore.settings();
     const data = this.recipesStore.adjustedDataset();
     const paused = this.preferencesStore.paused();
+    const glpkAlgorithm = this.preferencesStore.glpkAlgorithm();
 
-    return this.solver.solve(objectives, settings, data, paused);
+    return this.solver.solve(objectives, settings, data, paused, glpkAlgorithm);
   });
 
   readonly steps = computed(() => {

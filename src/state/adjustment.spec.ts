@@ -821,10 +821,27 @@ describe('Adjustment', () => {
       );
       expect(result.pollution).toEqual(rational(854n, 125n));
     });
+
+    it('should apply a recipeCostMultiplier', () => {
+      const data = mocks.getDataset();
+      data.flags.add('recipeCostMultiplier');
+      const settings = spread(settingsStore.settings(), {
+        recipeCostMultiplier: rational(2n),
+      });
+      const result = service.adjustRecipe(
+        RecipeId.SteelPlate,
+        recipesStore.settings()[RecipeId.SteelPlate],
+        itemsStore.settings(),
+        settings,
+        data,
+      );
+      expect(result.in[ItemId.IronPlate]).toEqual(rational(10n));
+    });
   });
 
   describe('adjustLaunchRecipeObjective', () => {
     it('should skip non-launch objectives', () => {
+      const data = mocks.getAdjustedDataset();
       const recipe = spread(
         settingsStore.dataset().recipeRecord[RecipeId.IronPlate],
       );
@@ -834,7 +851,7 @@ describe('Adjustment', () => {
       service.adjustLaunchRecipeObjective(
         recipe,
         recipesStore.settings(),
-        recipesStore.adjustedDataset(),
+        data,
       );
       expect(recipe.time).toEqual(time);
 
@@ -843,18 +860,27 @@ describe('Adjustment', () => {
       service.adjustLaunchRecipeObjective(
         recipe,
         recipesStore.settings(),
-        recipesStore.adjustedDataset(),
+        data,
+      );
+      expect(recipe.time).toEqual(time);
+
+      // No rocket recipe output
+      const settings = mocks.getRecipesState();
+      data.machineRecord[settings[RecipeId.IronPlate].machineId!].silo = {
+        parts: rational(50),
+        launch: rational(2000),
+      };
+      data.adjustedRecipe[RecipeId.IronPlate].out = {};
+      service.adjustLaunchRecipeObjective(
+        recipe,
+        recipesStore.settings(),
+        data,
       );
       expect(recipe.time).toEqual(time);
 
       // No machine id
-      const settings = mocks.getRecipesState();
       delete settings[RecipeId.IronPlate].machineId;
-      service.adjustLaunchRecipeObjective(
-        recipe,
-        settings,
-        recipesStore.adjustedDataset(),
-      );
+      service.adjustLaunchRecipeObjective(recipe, settings, data);
       expect(recipe.time).toEqual(time);
     });
 
@@ -976,6 +1002,19 @@ describe('Adjustment', () => {
       expect(result[RecipeId.RocketPart].time).toEqual(
         rational(11227n, 30000n),
       );
+    });
+
+    it('should handle rocket recipes with no outputs', () => {
+      adjustedRecipe[RecipeId.RocketPart].out = {};
+      const result = service.adjustSiloRecipes(
+        adjustedRecipe,
+        recipesStore.settings(),
+        mocks.getDataset(),
+      );
+      expect(result[RecipeId.SpaceSciencePack].time).toEqual(
+        rational(203n, 5n),
+      );
+      expect(result[RecipeId.RocketPart].time).toEqual(rational(75n, 116n));
     });
   });
 
