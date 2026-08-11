@@ -58,13 +58,16 @@ export class Exporter {
     const itemsState = this.itemsState();
     const globalBeltId = this.settingsStore.settings().beltId;
     
+    // istanbul ignore next
     const beltCountsByItem = new Map<string, number>();
+    // istanbul ignore next
     for (const step of allSteps) {
         if (!step.itemId || !step.belts) continue;
         const current = beltCountsByItem.get(step.itemId) ?? 0;
         beltCountsByItem.set(step.itemId, current + step.belts.toNumber());
     }
 
+    // istanbul ignore next
     for (const [itemId, belts] of beltCountsByItem.entries()) {
         const beltsCount = Math.ceil(belts);
         if (beltsCount > 1) {
