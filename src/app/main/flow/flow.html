@@ -16,10 +16,21 @@
         [text]="exportText()"
         (click)="exportBlueprint()"
       ></button>
-      <label class="ms-2 flex items-center gap-1 whitespace-nowrap text-sm">
-        <input type="checkbox" [checked]="exportExcludeSmelters()" (change)="exportExcludeSmelters.set(!exportExcludeSmelters())" />
-        No Smelters
-      </label>
+      <lab-dropdown controlId="export-options" [border]="true">
+        <span class="whitespace-nowrap px-2 text-sm">Options</span>
+        <ng-template #overlay>
+          <div class="flex flex-col gap-2">
+            <label class="flex items-center gap-1 whitespace-nowrap text-sm">
+              <input type="checkbox" [checked]="exportSmelters()" (change)="exportSmelters.set(!exportSmelters())" />
+              Smelters
+            </label>
+            <label class="flex items-center gap-1 whitespace-nowrap text-sm">
+              <input type="checkbox" [checked]="exportCompactLayout()" (change)="exportCompactLayout.set(!exportCompactLayout())" />
+              Compact Layout
+            </label>
+          </div>
+        </ng-template>
+      </lab-dropdown>
     </div>
     <button
       type="button"

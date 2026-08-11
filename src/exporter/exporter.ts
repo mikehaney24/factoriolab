@@ -44,11 +44,44 @@ export class Exporter {
     this.saveAsJson(JSON.stringify(flowData), 'factoriolab_flow');
   }
 
-  async exportToBlueprint(steps: Step[]): Promise<void> {
+  async exportToBlueprint(
+    steps: Step[],
+    compactLayout = false,
+    excludedSteps: Step[] = [],
+  ): Promise<void> {
     const data = this.data();
     const locationIds = this.settingsStore.settings().locationIds;
     const isSpacePlatformLayout = locationIds.size === 1 && locationIds.has('space-platform');
-    const str = await this.blueprintService.generateBlueprintFromSteps(steps, data, isSpacePlatformLayout);
+    
+    const inputBelts: { beltId: string, itemId: string, count: number }[] = [];
+    const allSteps = [...excludedSteps, ...steps];
+    const itemsState = this.itemsState();
+    const globalBeltId = this.settingsStore.settings().beltId;
+    
+    const beltCountsByItem = new Map<string, number>();
+    for (const step of allSteps) {
+        if (!step.itemId || !step.belts) continue;
+        const current = beltCountsByItem.get(step.itemId) ?? 0;
+        beltCountsByItem.set(step.itemId, current + step.belts.toNumber());
+    }
+
+    for (const [itemId, belts] of beltCountsByItem.entries()) {
+        const beltsCount = Math.ceil(belts);
+        if (beltsCount > 1) {
+            const isFluid = !data.itemRecord[itemId]?.stack;
+            if (isFluid) {
+                inputBelts.push({ beltId: 'pump', itemId, count: beltsCount });
+            } else {
+                const itemSettings = itemsState[itemId];
+                const beltId = itemSettings?.beltId ?? globalBeltId;
+                if (beltId && data.beltIds.includes(beltId)) {
+                    inputBelts.push({ beltId, itemId, count: beltsCount });
+                }
+            }
+        }
+    }
+    
+    const str = await this.blueprintService.generateBlueprintFromSteps(steps, data, isSpacePlatformLayout, compactLayout, excludedSteps, inputBelts);
     await navigator.clipboard.writeText(str);
   }
 

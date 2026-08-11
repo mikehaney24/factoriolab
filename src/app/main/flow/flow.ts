@@ -14,6 +14,7 @@ import ELK, { ElkExtendedEdge, ElkNode } from 'elkjs';
 import { combineLatest, debounceTime, switchMap } from 'rxjs';
 
 import { Button } from '~/components/button/button';
+import { Dropdown } from '~/components/dropdown/dropdown';
 import { FlowSettingsDialog } from '~/components/flow-settings-dialog/flow-settings-dialog';
 import { Steps } from '~/components/steps/steps';
 import { boxEdgeLine } from '~/d3/box-line/box-line-edge';
@@ -62,7 +63,7 @@ interface ElkGraph extends ElkNode {
 
 @Component({
   selector: 'lab-flow',
-  imports: [Button, Steps],
+  imports: [Button, Steps, Dropdown],
   templateUrl: './flow.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-1 pb-3 sm:gap-2 lg:pb-6' },
@@ -90,7 +91,8 @@ export class Flow {
   protected readonly FlowSettingsDialog = FlowSettingsDialog;
 
   exportText = signal('flow.exportBlueprint');
-  exportExcludeSmelters = signal(false);
+  exportSmelters = signal(true);
+  exportCompactLayout = signal(false);
 
   constructor() {
     combineLatest({
@@ -105,15 +107,31 @@ export class Flow {
   }
 
   async exportBlueprint(): Promise<void> {
-    let stepsToExport = this.objectivesStore.steps();
-    if (this.exportExcludeSmelters()) {
-        const isSmelter = (step: Step): boolean => {
-            const machineId = step.recipeSettings?.machineId?.toLowerCase() || '';
-            return machineId.includes('furnace') || machineId.includes('foundry');
-        };
+    let stepsToExport = [...this.objectivesStore.steps()];
+    const excludedSteps: Step[] = [];
+
+    const isSmelter = (step: Step): boolean => {
+        const machineId = step.recipeSettings?.machineId?.toLowerCase() || '';
+        return machineId.includes('furnace') || machineId.includes('foundry');
+    };
+    if (!this.exportSmelters()) {
+        excludedSteps.push(...stepsToExport.filter(isSmelter));
         stepsToExport = stepsToExport.filter(s => !isSmelter(s));
     }
-    await this.exporter.exportToBlueprint(stepsToExport);
+    // Always exclude gatherers (miners, offshore pumps, pumpjacks) and put them in constant combinators
+    const isAlwaysExcluded = (step: Step): boolean => {
+        const machineId = step.recipeSettings?.machineId?.toLowerCase() || '';
+        const recipeId = step.recipeId?.toLowerCase() || '';
+        const itemId = step.itemId?.toLowerCase() || '';
+        return machineId.includes('pumpjack') || machineId.includes('offshore-pump') || machineId.includes('mining-drill') ||
+               recipeId === 'crude-oil' || recipeId === 'water' ||
+               itemId === 'crude-oil' || itemId === 'water';
+    };
+    
+    excludedSteps.push(...stepsToExport.filter(isAlwaysExcluded));
+    stepsToExport = stepsToExport.filter(s => !isAlwaysExcluded(s));
+
+    await this.exporter.exportToBlueprint(stepsToExport, this.exportCompactLayout(), excludedSteps);
     this.exportText.set('flow.exportBlueprintCopied');
     setTimeout(() => { this.exportText.set('flow.exportBlueprint'); }, 3000);
   }
