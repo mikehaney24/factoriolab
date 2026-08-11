@@ -51,6 +51,7 @@ import { BeaconsSelect } from '../beacons-select/beacons-select';
 import { Button } from '../button/button';
 import { Checkbox } from '../checkbox/checkbox';
 import { ColumnsDialog } from '../columns-dialog/columns-dialog';
+import { Dropdown } from '../dropdown/dropdown';
 import { Icon } from '../icon/icon';
 import { InputNumber } from '../input-number/input-number';
 import { ModulesSelect } from '../modules-select/modules-select';
@@ -73,6 +74,7 @@ import { TotalCell } from './total-cell/total-cell';
     FormsModule,
     RouterLink,
     BeaconsSelect,
+    Dropdown,
     Button,
     Checkbox,
     Icon,
@@ -134,19 +136,36 @@ export class Steps {
   protected readonly totals = this.objectivesStore.totals;
 
   protected readonly expandedSteps = signal<Set<string>>(new Set());
+  exportSmelters = signal(true);
   exportText = signal('flow.exportBlueprint');
-  exportExcludeSmelters = signal(false);
+  exportCompactLayout = signal(false);
 
   async exportBlueprint(): Promise<void> {
-    let stepsToExport = this.objectivesStore.steps();
-    if (this.exportExcludeSmelters()) {
-        const isSmelter = (step: Step): boolean => {
-            const machineId = step.recipeSettings?.machineId?.toLowerCase() || '';
-            return machineId.includes('furnace') || machineId.includes('foundry');
-        };
+    let stepsToExport = [...this.steps()];
+    const excludedSteps: Step[] = [];
+
+    const isSmelter = (step: Step): boolean => {
+        const machineId = step.recipeSettings?.machineId?.toLowerCase() || '';
+        return machineId.includes('furnace') || machineId.includes('foundry');
+    };
+    if (!this.exportSmelters()) {
+        excludedSteps.push(...stepsToExport.filter(isSmelter));
         stepsToExport = stepsToExport.filter(s => !isSmelter(s));
     }
-    await this.exporter.exportToBlueprint(stepsToExport);
+    // Always exclude gatherers (miners, offshore pumps, pumpjacks) and put them in constant combinators
+    const isAlwaysExcluded = (step: Step): boolean => {
+        const machineId = step.recipeSettings?.machineId?.toLowerCase() || '';
+        const recipeId = step.recipeId?.toLowerCase() || '';
+        const itemId = step.itemId?.toLowerCase() || '';
+        return machineId.includes('pumpjack') || machineId.includes('offshore-pump') || machineId.includes('mining-drill') ||
+               recipeId === 'crude-oil' || recipeId === 'water' ||
+               itemId === 'crude-oil' || itemId === 'water';
+    };
+    
+    excludedSteps.push(...stepsToExport.filter(isAlwaysExcluded));
+    stepsToExport = stepsToExport.filter(s => !isAlwaysExcluded(s));
+
+    await this.exporter.exportToBlueprint(stepsToExport, this.exportCompactLayout(), excludedSteps);
     this.exportText.set('flow.exportBlueprintCopied');
     setTimeout(() => { this.exportText.set('flow.exportBlueprint'); }, 3000);
   }

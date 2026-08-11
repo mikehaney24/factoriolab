@@ -11,7 +11,30 @@ import {
   IBlueprintData,
   IEntity,
   IIcon,
-  } from './blueprint-types';
+} from './blueprint-types';
+
+export interface CompactBlock {
+    step: Step;
+    numMachines: number;
+    w: number;
+    h: number;
+    cols: number;
+    rows: number;
+    mBlockW: number;
+    mBlockH: number;
+    blockW: number;
+    blockH: number;
+    stepNumBeacons: number;
+    bWidth: number;
+    bHeight: number;
+    beaconId?: string;
+    beaconModules?: { id?: string, count?: { isZero: () => boolean, toNumber: () => number } }[];
+    beaconsLeft: number;
+    beaconsRight: number;
+    beaconColW: number;
+    machineIdStr: string;
+    recipeId: string;
+}
 
 export const FACTORIO_2_1_VERSION = 562954248847360; // Factorio 2.1.7.0
 
@@ -37,7 +60,11 @@ export class BlueprintService {
     return '0' + btoa(binaryString);
   }
 
-  async generateBlueprintFromSteps(steps: Step[], data: Dataset, isSpacePlatformLayout = false): Promise<string> {
+  async generateBlueprintFromSteps(steps: Step[], data: Dataset, isSpacePlatformLayout = false, compactLayout = false, excludedSteps: Step[] = [], inputBelts: { beltId: string, itemId: string, count: number }[] = []): Promise<string> {
+    if (!isSpacePlatformLayout && compactLayout) {
+        return this.generateCompactRectangleBlueprint(steps, data, excludedSteps, inputBelts);
+    }
+    const isCompact = isSpacePlatformLayout || compactLayout;
     const entities: IEntity[] = [];
     let entity_number = 1;
 
@@ -291,12 +318,12 @@ export class BlueprintService {
         if (needsBeacon) {
             beaconColX.set(i, runningX);
             const bW = Math.max(maxBeaconWidthAtDepth.get(i + 1) ?? 3, maxBW || 3);
-            const gap = isSpacePlatformLayout ? 0 : 1;
+            const gap = isCompact ? 0 : 1;
             runningX += bW + gap;
         }
 
         machineColX.set(i, runningX);
-        const gap = isSpacePlatformLayout ? 0 : 1;
+        const gap = isCompact ? 0 : 1;
         runningX += maxW + gap;
     }
 
@@ -363,7 +390,7 @@ export class BlueprintService {
           let idealY = 0;
           if (isTargetCol) {
               idealY = currentOutputY;
-              currentOutputY += stepHeightTotal + (isSpacePlatformLayout ? 0 : 10); // Extra gap for different outputs
+              currentOutputY += stepHeightTotal + (isCompact ? 0 : 10); // Extra gap for different outputs
           } else {
              // Barycenter
              let sum = 0, count = 0;
@@ -388,7 +415,7 @@ export class BlueprintService {
               let prevOffset = 0;
               for (const s of prev.steps) {
                   prevSum += s.idealY - prevOffset;
-                  prevOffset += s.height + (isSpacePlatformLayout ? 0 : 2);
+                  prevOffset += s.height + (isCompact ? 0 : 2);
               }
               const prevStartY = prevSum / prev.steps.length;
               
@@ -396,7 +423,7 @@ export class BlueprintService {
               let bOffset = 0;
               for (const s of b.steps) {
                   bSum += s.idealY - bOffset;
-                  bOffset += s.height + (isSpacePlatformLayout ? 0 : 2);
+                  bOffset += s.height + (isCompact ? 0 : 2);
               }
               const bStartY = bSum / b.steps.length;
               
@@ -417,7 +444,7 @@ export class BlueprintService {
            let offset = 0;
            for (const s of b.steps) {
                sum += s.idealY - offset;
-               offset += s.height + (isSpacePlatformLayout ? 0 : 2);
+               offset += s.height + (isCompact ? 0 : 2);
            }
            let currentY = sum / b.steps.length;
            
@@ -427,7 +454,7 @@ export class BlueprintService {
                if (s.step.id) {
                    stepCenterY.set(s.step.id, currentY + s.height / 2);
                }
-               currentY += s.height + (isSpacePlatformLayout ? 0 : 2);
+               currentY += s.height + (isCompact ? 0 : 2);
            }
            
            floorY = currentY;
@@ -482,7 +509,7 @@ export class BlueprintService {
         }
 
         // Output Panels (for depth 0 outputs)
-        if (!isSpacePlatformLayout && step.id && step.parents?.[''] && !step.parents[''].isZero()) {
+        if (!isCompact && step.id && step.parents?.[''] && !step.parents[''].isZero()) {
            const fraction = step.parents[''].toNumber();
            const targetBelts = step.belts ? step.belts.toNumber() * fraction : 0;
            const isFluid = !data.itemRecord[step.itemId!]?.stack;
@@ -508,7 +535,7 @@ export class BlueprintService {
 
         // Input panels for raw materials
         const incomingForGatherer = incomingEdges.get(step.id ?? '') ?? [];
-        if (!isSpacePlatformLayout && incomingForGatherer.length === 0 && step.itemId) {
+        if (!isCompact && incomingForGatherer.length === 0 && step.itemId) {
            const beltsRequired = step.belts ? step.belts.toNumber() : 0;
            const isFluid = !data.itemRecord[step.itemId]?.stack;
            const tag = isFluid ? 'fluid' : 'item';
@@ -607,6 +634,9 @@ export class BlueprintService {
       });
     }
 
+    this.addExcludedStepsDisplayPanel(entities, entity_number, excludedSteps, data);
+    this.addInputBeltsDisplayPanel(entities, entity_number, inputBelts, data);
+
     const blueprintData: IBlueprintData = {
       blueprint: {
         version: FACTORIO_2_1_VERSION,
@@ -620,6 +650,276 @@ export class BlueprintService {
     return this.encodeBlueprintString(blueprintData);
   }
 
+  private async generateCompactRectangleBlueprint(steps: Step[], data: Dataset, excludedSteps: Step[] = [], inputBelts: { beltId: string, itemId: string, count: number }[] = []): Promise<string> {
+      const entities: IEntity[] = [];
+      let entity_number = 1;
+      
+      const blocks: CompactBlock[] = [];
+      let totalArea = 0;
+      
+      for (const step of steps) {
+          const numMachines = Math.ceil(step.machines?.toNumber() ?? 0);
+          if (numMachines <= 0) continue;
+          
+          const recipeId = step.recipeId;
+          const recipeSettings = step.recipeSettings;
+          if (!recipeId || !recipeSettings?.machineId) continue;
+          
+          const machineIdStr = recipeSettings.machineId;
+          const [w, h] = this.getMachineSize(machineIdStr, data);
+          
+          let stepNumBeacons = 0;
+          let bWidth = 3;
+          let bHeight = 3;
+          const beacons = recipeSettings.beacons ?? [];
+          const foundBeacon = beacons.find(b => b.id && b.count && !b.count.isZero());
+          if (foundBeacon?.id) {
+              stepNumBeacons = Math.ceil((foundBeacon.total ?? foundBeacon.count ?? rational.zero).toNumber());
+              const beaconRecord = data.beaconRecord[foundBeacon.id];
+              bWidth = beaconRecord?.size?.[0] ?? 3;
+              bHeight = beaconRecord?.size?.[1] ?? 3;
+          }
+          
+          // Format machines into a square-ish grid
+          const cols = Math.ceil(Math.sqrt(numMachines * (h / w)));
+          const rows = Math.ceil(numMachines / cols);
+          
+          const mBlockW = cols * w;
+          const mBlockH = rows * h;
+          
+          // If we have beacons, we'll just put them in a column on the left and right of the machine block
+          const beaconsLeft = Math.ceil(stepNumBeacons / 2);
+          const beaconsRight = Math.floor(stepNumBeacons / 2);
+          const beaconColW = stepNumBeacons > 0 ? bWidth : 0;
+          
+          const blockW = mBlockW + (beaconsLeft > 0 ? beaconColW : 0) + (beaconsRight > 0 ? beaconColW : 0);
+          const blockH = Math.max(mBlockH, Math.ceil(beaconsLeft) * bHeight, Math.ceil(beaconsRight) * bHeight);
+          
+          totalArea += blockW * blockH;
+          
+          blocks.push({
+              step, numMachines, w, h, cols, rows, mBlockW, mBlockH,
+              blockW, blockH, stepNumBeacons, bWidth, bHeight,
+              beaconId: foundBeacon?.id, beaconModules: foundBeacon?.modules,
+              beaconsLeft, beaconsRight, beaconColW, machineIdStr, recipeId
+          });
+      }
+      
+      // Shelf packing
+      blocks.sort((a, b) => b.blockH - a.blockH); // tallest first
+      const targetWidth = Math.max(...blocks.map(b => b.blockW), Math.ceil(Math.sqrt(totalArea)));
+      
+      let currentX = 0;
+      let currentY = 0;
+      let rowHeight = 0;
+      
+      for (const block of blocks) {
+          if (currentX + block.blockW > targetWidth && currentX > 0) {
+              currentX = 0;
+              currentY += rowHeight;
+              rowHeight = 0;
+          }
+          
+          let bX = currentX;
+          const bY = currentY;
+          
+          // Place Left Beacons
+          if (block.beaconsLeft > 0) {
+              let beaconY = bY;
+              for (let j = 0; j < block.beaconsLeft; j++) {
+                  this.placeBeaconCompact(entities, entity_number++, block, bX, beaconY);
+                  beaconY += block.bHeight;
+              }
+              bX += block.beaconColW;
+          }
+          
+          // Place Machines
+          let mX = bX;
+          let mY = bY;
+          let placed = 0;
+          for (let r = 0; r < block.rows; r++) {
+              for (let c = 0; c < block.cols; c++) {
+                  if (placed >= block.numMachines) break;
+                  
+                  const { baseId: machineBaseId, level: machineQualityLevel } = this.parseQualityId(block.machineIdStr);
+                  const { baseId: recipeBaseId, level: recipeQualityLevel } = this.parseQualityId(block.recipeId);
+                  const machineModulesPlan = this.generateInsertPlan(block.step.recipeSettings!.modules, block.machineIdStr) ?? [];
+                  
+                  const entity: IEntity = {
+                      entity_number: entity_number++,
+                      name: machineBaseId,
+                      position: { x: mX + block.w / 2, y: mY + block.h / 2 },
+                      recipe: recipeBaseId,
+                      recipe_quality: getQualityString(recipeQualityLevel),
+                      quality: getQualityString(machineQualityLevel),
+                      items: machineModulesPlan,
+                  };
+                  if (block.machineIdStr.toLowerCase().includes('crusher')) {
+                      entity.direction = 4;
+                  }
+                  entities.push(entity);
+                  
+                  mX += block.w;
+                  placed++;
+              }
+              mX = bX;
+              mY += block.h;
+          }
+          bX += block.mBlockW;
+          
+          // Place Right Beacons
+          if (block.beaconsRight > 0) {
+              let beaconY = bY;
+              for (let j = 0; j < block.beaconsRight; j++) {
+                  this.placeBeaconCompact(entities, entity_number++, block, bX, beaconY);
+                  beaconY += block.bHeight;
+              }
+          }
+          
+          currentX += block.blockW;
+          rowHeight = Math.max(rowHeight, block.blockH);
+      }
+      
+      const icons: IIcon[] = [];
+      const mainIconItem = steps.find(s => s.output?.gt(rational.zero))?.itemId ?? steps[0]?.itemId;
+      if (mainIconItem) {
+          const { baseId: iconBaseId } = this.parseQualityId(mainIconItem);
+          icons.push({
+              index: 1,
+              signal: { type: data.itemRecord[iconBaseId]?.stack ? 'item' : 'fluid', name: iconBaseId },
+          });
+      }
+      
+      this.addExcludedStepsDisplayPanel(entities, entity_number, excludedSteps, data);
+      this.addInputBeltsDisplayPanel(entities, entity_number, inputBelts, data);
+      
+      const blueprintData: IBlueprintData = {
+          blueprint: {
+              version: FACTORIO_2_1_VERSION,
+              item: 'blueprint',
+              label: 'FactorioLab Compact Export',
+              icons,
+              entities,
+          },
+      };
+      
+      return this.encodeBlueprintString(blueprintData);
+  }
+
+  private placeBeaconCompact(entities: IEntity[], entity_number: number, block: CompactBlock, x: number, y: number): void {
+      const parsed = this.parseQualityId(block.beaconId!);
+      const beaconModulesPlan = this.generateInsertPlan(block.beaconModules, block.beaconId!) ?? [];
+      entities.push({
+          entity_number: entity_number,
+          name: parsed.baseId,
+          position: { x: x + block.bWidth / 2, y: y + block.bHeight / 2 },
+          quality: getQualityString(parsed.level ?? 0),
+          items: beaconModulesPlan,
+      });
+  }
+
+  private addExcludedStepsDisplayPanel(entities: IEntity[], entity_number: number, excludedSteps: Step[], data: Dataset): void {
+      if (!excludedSteps || excludedSteps.length === 0) return;
+      
+      const parametersByMachine = new Map<string, string[]>();
+      
+      for (const step of excludedSteps) {
+          let machineId = step.recipeSettings?.machineId ?? '';
+          let itemId = step.itemId;
+          if (!itemId) itemId = step.recipeId;
+          
+          if (!machineId && itemId === 'crude-oil') machineId = 'pumpjack';
+          if (!machineId && itemId === 'water') machineId = 'offshore-pump';
+          
+          let numMachines = Math.ceil(step.machines?.toNumber() ?? 0);
+          if (numMachines <= 0 && (machineId === 'pumpjack' || machineId === 'offshore-pump')) {
+              numMachines = 1;
+          }
+          if (numMachines <= 0 || !itemId) continue;
+          
+          const { baseId: machineBaseId } = this.parseQualityId(machineId);
+          const { baseId: itemBaseId } = this.parseQualityId(itemId);
+          const type = data.itemRecord[itemBaseId]?.stack ? 'item' : 'fluid';
+          const itemTag = `[${type}=${itemBaseId}]`;
+          const entityTag = `[entity=${machineBaseId}]`;
+          
+          let moduleString = '';
+          if (step.recipeSettings?.modules) {
+              for (const mod of step.recipeSettings.modules) {
+                  if (mod.id && mod.id !== 'module') {
+                      const count = Math.ceil(mod.count?.toNumber() ?? 0);
+                      if (count > 0) {
+                          const { baseId: modBaseId } = this.parseQualityId(mod.id);
+                          moduleString += ` ${count}[item=${modBaseId}]`;
+                      }
+                  }
+              }
+          }
+          
+          const text = `${numMachines} ${entityTag}${moduleString} ${itemTag}`;
+          if (!parametersByMachine.has(machineBaseId)) {
+              parametersByMachine.set(machineBaseId, []);
+          }
+          parametersByMachine.get(machineBaseId)!.push(text);
+      }
+      
+      if (parametersByMachine.size > 0) {
+          let displayX = 0;
+          let displayY = -2;
+          if (entities.length > 0) {
+              displayX = entities[0].position.x;
+              displayY = entities[0].position.y - 2;
+          }
+          
+          let i = 0;
+          for (const lines of parametersByMachine.values()) {
+              entities.push({
+                  entity_number: entity_number + i,
+                  name: 'constant-combinator',
+                  position: { x: displayX + i, y: displayY },
+                  player_description: lines.join('\n'),
+              });
+              i++;
+          }
+      }
+  }
+
+  private addInputBeltsDisplayPanel(entities: IEntity[], entity_number: number, inputBelts: { beltId: string, itemId: string, count: number }[], data: Dataset): void {
+      if (!inputBelts || inputBelts.length === 0) return;
+      
+      const parameters: string[] = [];
+      for (const belt of inputBelts) {
+          const { baseId: beltBaseId } = this.parseQualityId(belt.beltId);
+          const { baseId: itemBaseId } = this.parseQualityId(belt.itemId);
+          
+          const type = data.itemRecord[itemBaseId]?.stack ? 'item' : 'fluid';
+          const beltTag = `[entity=${beltBaseId}]`;
+          const itemTag = `[${type}=${itemBaseId}]`;
+          
+          parameters.push(`${belt.count} ${beltTag} ${itemTag}`);
+      }
+      
+      if (parameters.length > 0) {
+          let displayX = 0;
+          let displayY = -4; // Place it slightly higher up
+          if (entities.length > 0) {
+              displayX = entities[0].position.x;
+              displayY = entities[0].position.y - 4;
+          }
+          
+          let maxEntityNumber = entity_number;
+          for (const entity of entities) {
+              if (entity.entity_number >= maxEntityNumber) maxEntityNumber = entity.entity_number + 1;
+          }
+          
+          entities.push({
+              entity_number: maxEntityNumber,
+              name: 'constant-combinator',
+              position: { x: displayX, y: displayY },
+              player_description: parameters.join('\n'),
+          });
+      }
+  }
   private parseQualityId(id: string): { baseId: string; level?: number } {
     const match = QUALITY_REGEX.exec(id);
     if (match) {
