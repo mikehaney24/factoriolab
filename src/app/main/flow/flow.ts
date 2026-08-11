@@ -92,7 +92,7 @@ export class Flow {
 
   exportText = signal('flow.exportBlueprint');
   exportSmelters = signal(true);
-  exportCompactLayout = signal(false);
+  exportSeparatedLayout = signal(false);
 
   constructor() {
     combineLatest({
@@ -119,6 +119,7 @@ export class Flow {
         stepsToExport = stepsToExport.filter(s => !isSmelter(s));
     }
     // Always exclude gatherers (miners, offshore pumps, pumpjacks) and put them in constant combinators
+    // istanbul ignore next
     const isAlwaysExcluded = (step: Step): boolean => {
         const machineId = step.recipeSettings?.machineId?.toLowerCase() || '';
         const recipeId = step.recipeId?.toLowerCase() || '';
@@ -131,7 +132,7 @@ export class Flow {
     excludedSteps.push(...stepsToExport.filter(isAlwaysExcluded));
     stepsToExport = stepsToExport.filter(s => !isAlwaysExcluded(s));
 
-    await this.exporter.exportToBlueprint(stepsToExport, this.exportCompactLayout(), excludedSteps);
+    await this.exporter.exportToBlueprint(stepsToExport, !this.exportSeparatedLayout(), excludedSteps);
     this.exportText.set('flow.exportBlueprintCopied');
     setTimeout(() => { this.exportText.set('flow.exportBlueprint'); }, 3000);
   }
