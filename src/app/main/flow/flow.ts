@@ -110,6 +110,7 @@ export class Flow {
     let stepsToExport = [...this.objectivesStore.steps()];
     const excludedSteps: Step[] = [];
 
+    const combinatorSteps: Step[] = [];
     const isSmelter = (step: Step): boolean => {
         const machineId = step.recipeSettings?.machineId?.toLowerCase() || '';
         return machineId.includes('furnace') || machineId.includes('foundry');
@@ -129,10 +130,16 @@ export class Flow {
                itemId === 'crude-oil' || itemId === 'water';
     };
     
-    excludedSteps.push(...stepsToExport.filter(isAlwaysExcluded));
+    const alwaysExcluded = stepsToExport.filter(isAlwaysExcluded);
+    excludedSteps.push(...alwaysExcluded);
+    
+    // Add all of the always excluded AND all of the smelters to the combinator
+    combinatorSteps.push(...alwaysExcluded);
+    combinatorSteps.push(...this.objectivesStore.steps().filter(isSmelter));
+
     stepsToExport = stepsToExport.filter(s => !isAlwaysExcluded(s));
 
-    await this.exporter.exportToBlueprint(stepsToExport, !this.exportSeparatedLayout(), excludedSteps);
+    await this.exporter.exportToBlueprint(stepsToExport, !this.exportSeparatedLayout(), excludedSteps, combinatorSteps);
     this.exportText.set('flow.exportBlueprintCopied');
     setTimeout(() => { this.exportText.set('flow.exportBlueprint'); }, 3000);
   }
