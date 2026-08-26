@@ -60,9 +60,9 @@ export class BlueprintService {
     return '0' + btoa(binaryString);
   }
 
-  async generateBlueprintFromSteps(steps: Step[], data: Dataset, isSpacePlatformLayout = false, compactLayout = false, excludedSteps: Step[] = [], inputBelts: { beltId: string, itemId: string, count: number }[] = []): Promise<string> {
+  async generateBlueprintFromSteps(steps: Step[], data: Dataset, isSpacePlatformLayout = false, compactLayout = false, excludedSteps: Step[] = [], inputBelts: { beltId: string, itemId: string, count: number }[] = [], combinatorSteps: Step[] = []): Promise<string> {
     if (!isSpacePlatformLayout && compactLayout) {
-        return this.generateCompactRectangleBlueprint(steps, data, excludedSteps, inputBelts);
+        return this.generateCompactRectangleBlueprint(steps, data, excludedSteps, inputBelts, combinatorSteps);
     }
     const isCompact = isSpacePlatformLayout || compactLayout;
     const entities: IEntity[] = [];
@@ -650,7 +650,7 @@ export class BlueprintService {
     return this.encodeBlueprintString(blueprintData);
   }
 
-  private async generateCompactRectangleBlueprint(steps: Step[], data: Dataset, excludedSteps: Step[] = [], inputBelts: { beltId: string, itemId: string, count: number }[] = []): Promise<string> {
+  private async generateCompactRectangleBlueprint(steps: Step[], data: Dataset, _excludedSteps: Step[] = [], inputBelts: { beltId: string, itemId: string, count: number }[] = [], combinatorSteps: Step[] = []): Promise<string> {
       const entities: IEntity[] = [];
       let entity_number = 1;
       
@@ -790,8 +790,8 @@ export class BlueprintService {
           });
       }
       
-      this.addExcludedStepsDisplayPanel(entities, entity_number, excludedSteps, data);
-      this.addInputBeltsDisplayPanel(entities, entity_number, inputBelts, data);
+      this.addExcludedStepsDisplayPanel(entities, entity_number, combinatorSteps, data);
+      this.addInputBeltsDisplayPanel(entities, entity_number + combinatorSteps.length, inputBelts, data);
       
       const blueprintData: IBlueprintData = {
           blueprint: {
