@@ -14,6 +14,7 @@ export interface Datasets {
 export const datasets: Datasets = {
   mods: [
     { id: '2x1', name: 'Space Age', game: 'factorio' },
+    { id: '2q1', name: 'Quality', game: 'factorio' },
     { id: '2.1', name: '2.1', game: 'factorio' },
     { id: 'spa', name: 'Space Age 2.0', game: 'factorio' },
     { id: '2.0', name: '2.0', game: 'factorio' },
@@ -30,6 +31,7 @@ export const datasets: Datasets = {
     { id: 'pysalf', name: 'Pyanodons + AL', game: 'factorio' },
     { id: 'sea', name: 'Sea Block', game: 'factorio' },
     { id: 'sxp', name: 'Space Exploration', game: 'factorio' },
+    { id: 'boi', name: 'Belts of Iron', game: 'belts-of-iron' },
     { id: 'coi', name: 'Captain of Industry', game: 'captain-of-industry' },
     { id: 'dsp', name: 'Dyson Sphere Program', game: 'dyson-sphere-program' },
     { id: 'fay', name: 'Factor Y', game: 'factor-y' },
@@ -83,8 +85,8 @@ export const datasets: Datasets = {
     'sxp',
     'kr2spo',
     'nls',
-    null,
-    null,
+    'boi',
+    '2q1',
     null,
     'sfy',
     'coi',

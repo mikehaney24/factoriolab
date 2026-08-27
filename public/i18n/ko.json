@@ -3,7 +3,7 @@
   "app": {
     "data": "데이터",
     "factory": "공장",
-    "flow": "흐름",
+    "flow": "흐름도",
     "list": "목록",
     "migrationWarning": "마이그레이션 경고",
     "simplexSolved": "계산됨, {{ time }}ms, 비용: {{ cost }}",
@@ -120,8 +120,8 @@
     "notFound": "찾을 수 없음",
     "overclock": "오버클럭",
     "pipe": "파이프",
-    "pollution": "오염",
-    "pollutionMultiplier": "오염 배수",
+    "pollution": "공해",
+    "pollutionMultiplier": "공해 배수",
     "prerequisites": "선행 조건",
     "producedByRecipes": "생산하는 제작법",
     "producers": "제작 가능 시설",
@@ -172,7 +172,7 @@
     "diagramTooltip": "사용할 흐름 시각화 유형을 선택하세요",
     "elkAlgorithm": "레이아웃 알고리즘",
     "elkAlgorithmTooltip": "박스-라인 레이아웃에 사용할 ELK 레이아웃 알고리즘을 선택하세요",
-    "header": "흐름 설정",
+    "header": "흐름도 설정",
     "hideExcluded": "제외된 항목 숨기기",
     "hideExcludedTooltip": "체크하면 제외된 항목이 흐름 다이어그램에서도 제외됩니다",
     "linkSize": "연결선 크기",
@@ -188,8 +188,7 @@
     "resetTooltip": "클릭하여 초기화",
     "selectGame": "게임 선택",
     "source": "소스",
-    "sponsor": "후원",
-    "v3": "FactorioLab 3"
+    "sponsor": "후원"
   },
   "inputNumber": {
     "decrement": "감소",
@@ -246,7 +245,7 @@
       "items": "아이템",
       "link": "링크",
       "machines": "기계",
-      "pollution": "오염",
+      "pollution": "공해",
       "power": "전력",
       "rockets": "로켓",
       "tree": "트리",
@@ -277,6 +276,7 @@
       "sankey": "생키"
     },
     "game": {
+      "beltsOfIron": "Belts of Iron",
       "captainOfIndustry": "Captain of Industry",
       "custom": "사용자 지정",
       "dysonSphereProgram": "Dyson Sphere Program",
@@ -294,7 +294,7 @@
     },
     "glpkAlgorithm": {
       "exact": "Exact",
-      "simplex": "Simplex (Default)"
+      "simplex": "Simplex (기본값)"
     },
     "linkValue": {
       "belts": "벨트",
@@ -324,9 +324,9 @@
       "itemsPerMinute": "아이템/m",
       "itemsPerSecond": "아이템/s",
       "machines": "기계",
-      "pollutionPerHour": "오염/h",
-      "pollutionPerMinute": "오염/m",
-      "pollutionPerSecond": "오염/s",
+      "pollutionPerHour": "공해/h",
+      "pollutionPerMinute": "공해/m",
+      "pollutionPerSecond": "공해/s",
       "rocketsPerHour": "로켓/h",
       "rocketsPerMinute": "로켓/m",
       "rocketsPerSecond": "로켓/s",
@@ -344,18 +344,11 @@
       "beacon12": "신호기 12개",
       "beacon2": "신호기 2개",
       "beacon8": "신호기 8개",
+      "legendary": "전설",
       "minimum": "최소",
       "modules": "모듈",
       "proliferated": "증식제 적용",
       "upgraded": "업그레이드"
-    },
-    "quality": {
-      "any": "모든 품질",
-      "epic": "특급",
-      "legendary": "전설",
-      "normal": "일반",
-      "rare": "희귀",
-      "uncommon": "고급"
     },
     "researchBonus": {
       "speed0": "보너스 없음",
@@ -410,7 +403,7 @@
     "createSavedState": "새로 만들기",
     "deleteSavedState": "삭제",
     "editSavedState": "이름 바꾸기",
-    "glpkAlgorithm": "GLPK Algorithm",
+    "glpkAlgorithm": "GLPK 알고리즘",
     "header": "환경설정",
     "helpTranslate": "번역 도와주기",
     "hide": "환경설정 패널 숨기기",
@@ -456,8 +449,8 @@
     "defaultStackTooltip": "벨트의 기본 묶음 크기를 선택하세요",
     "defaultTransportBelt": "기본 운송 벨트",
     "defaultTransportBeltTooltip": "모든 아이템에 사용할 기본 벨트를 선택하세요",
-    "estimateBeaconPowerUsage": "비콘 전력 사용량 추정",
-    "estimateBeaconPowerUsageTooltip": "비콘당 평균 수신 기계 수 추정치를 기반으로 비콘의 전력 사용량을 추정합니다",
+    "estimateBeaconPowerUsage": "신호기 전력 사용량 추정",
+    "estimateBeaconPowerUsageTooltip": "신호기당 평균 수신 기계 수 추정치를 바탕으로 신호기의 전력 사용량을 추정합니다",
     "factory": "공장",
     "flowRateUnit": "단위/초",
     "fuelRank": "선호 연료",
@@ -493,6 +486,7 @@
     "proliferatorSelfSpray": "증식제 자가 분사",
     "proliferatorSelfSprayTooltip": "증식제 자체에 적용할 증식제 분사를 선택하세요",
     "queryParamsPlaceholder": "쿼리 매개변수 붙여넣기",
+    "recipeCostMultiplier": "제작법 비용 배수",
     "recipeProductivity": "제작법 생산성 보너스",
     "recipeProductivityTooltip": "클릭하여 기술로 업그레이드된 제작법의 생산성 보너스를 설정하세요",
     "recipesExcluded": "제작법 {{ count }}개 제외됨",
