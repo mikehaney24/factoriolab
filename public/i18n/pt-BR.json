@@ -188,8 +188,7 @@
     "resetTooltip": "Click to reset",
     "selectGame": "Select game",
     "source": "Fonte",
-    "sponsor": "Sponsor",
-    "v3": "FactorioLab 3"
+    "sponsor": "Sponsor"
   },
   "inputNumber": {
     "decrement": "Decrement",
@@ -277,6 +276,7 @@
       "sankey": "Sankey"
     },
     "game": {
+      "beltsOfIron": "Belts of Iron",
       "captainOfIndustry": "Captain of Industry",
       "custom": "Custom",
       "dysonSphereProgram": "Dyson Sphere Program",
@@ -344,18 +344,11 @@
       "beacon12": "12 Transmissores",
       "beacon2": "2 Transmissores",
       "beacon8": "8 Transmissores",
+      "legendary": "Legendary",
       "minimum": "Mínimo",
       "modules": "Módulos",
       "proliferated": "Proliferado",
       "upgraded": "Aprimorado"
-    },
-    "quality": {
-      "any": "Qualquer",
-      "epic": "Épico",
-      "legendary": "Lendário",
-      "normal": "Normal",
-      "rare": "Raro",
-      "uncommon": "Incomum"
     },
     "researchBonus": {
       "speed0": "Sem bônus de pesquisa",
@@ -493,6 +486,7 @@
     "proliferatorSelfSpray": "Proliferator self-spray",
     "proliferatorSelfSprayTooltip": "Select the proliferator spray applied to proliferator itself",
     "queryParamsPlaceholder": "Paste query parameters",
+    "recipeCostMultiplier": "Recipe cost multiplier",
     "recipeProductivity": "Bônus de produtividade de receitas",
     "recipeProductivityTooltip": "Clique para definir os bônus de produtividade para receitas melhoradas por tecnologias",
     "recipesExcluded": "{{ count }} receitas excluídas",

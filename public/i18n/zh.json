@@ -188,8 +188,7 @@
     "resetTooltip": "点击重置目标",
     "selectGame": "Select game",
     "source": "源码",
-    "sponsor": "捐赠",
-    "v3": "FactorioLab 3"
+    "sponsor": "捐赠"
   },
   "inputNumber": {
     "decrement": "Decrement",
@@ -277,6 +276,7 @@
       "sankey": "桑基图"
     },
     "game": {
+      "beltsOfIron": "Belts of Iron",
       "captainOfIndustry": "工业巨头",
       "custom": "Custom",
       "dysonSphereProgram": "戴森球计划",
@@ -344,18 +344,11 @@
       "beacon12": "12 个插件效果分享塔",
       "beacon2": "2 个插件效果分享塔",
       "beacon8": "8 个插件效果分享塔",
+      "legendary": "Legendary",
       "minimum": "最小化",
       "modules": "插件",
       "proliferated": "已增产",
       "upgraded": "已升级"
-    },
-    "quality": {
-      "any": "任意",
-      "epic": "史诗",
-      "legendary": "传说",
-      "normal": "基础",
-      "rare": "稀有",
-      "uncommon": "精良"
     },
     "researchBonus": {
       "speed0": "无科技研究速度加成",
@@ -493,6 +486,7 @@
     "proliferatorSelfSpray": "自喷涂增产剂",
     "proliferatorSelfSprayTooltip": "选择适用于增产体本身的增产喷剂",
     "queryParamsPlaceholder": "Paste query parameters",
+    "recipeCostMultiplier": "Recipe cost multiplier",
     "recipeProductivity": "配方产能加成",
     "recipeProductivityTooltip": "点击设置科技加成对应的配方产能加成",
     "recipesExcluded": "已排除 {{ count }} 配方",

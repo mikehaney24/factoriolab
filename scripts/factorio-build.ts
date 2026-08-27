@@ -682,7 +682,7 @@ async function processMod(): Promise<void> {
     ],
   };
 
-  modData.version = getVersion(modsPath, factorioPath);
+  modData.version = getVersion(modsPath);
   if (modData.version['space-age'])
     modData.flags.push('beltStack', 'rockets', 'researchProductivity');
 
@@ -1880,7 +1880,7 @@ async function processMod(): Promise<void> {
             out: recipeOut,
             catalyst: recipeCatalyst,
             cost: 100,
-            flags: ['showCount'],
+            flags: ['showCount', 'plant'],
             icon,
             locations,
           };
@@ -2263,6 +2263,9 @@ async function processMod(): Promise<void> {
   const technologyIds = technologies.map((t) => t.name);
   for (const tech of technologies) {
     const technology: TechnologyJson = {};
+    if (tech.max_level === 'infinite') {
+      technology.infinite = true;
+    }
     const id = techId[tech.name];
     const prerequisites = coerceArray(tech.prerequisites);
     if (prerequisites?.length) {
