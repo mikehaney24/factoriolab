@@ -113,6 +113,67 @@ describe('Exporter', () => {
   });
 
   describe('exportToBlueprint', () => {
+    
+    it('should generate inputBelts correctly for solid and fluid items', async () => {
+      const generateSpy = spyOn(service['blueprintService'], 'generateBlueprintFromSteps').and.returnValue(Promise.resolve('0eTest'));
+      spyOn(navigator.clipboard, 'writeText').and.returnValue(Promise.resolve());
+
+      const data = service['data']();
+      // Make sure we have mock data
+      data.itemRecord['iron-plate'] = { stack: 100 } as any;
+      data.itemRecord['water'] = { stack: undefined } as any;
+      data.beltIds = ['transport-belt', 'fast-transport-belt'];
+
+      spyOn(service as any, 'itemsState').and.returnValue({
+          'iron-plate': { beltId: 'fast-transport-belt' }
+      } as any);
+
+      // Create mock steps:
+      const steps = [
+        {
+          id: '1',
+          itemId: 'iron-plate',
+          belts: rational(2.5),
+        },
+        {
+          id: '2',
+          itemId: 'water',
+          belts: rational(1.2),
+        },
+        {
+          id: '3',
+          itemId: 'iron-plate',
+          belts: rational(0.5), // Combines with step 1 to make 3 belts
+        },
+        {
+          id: '4', // Missing itemId
+          belts: rational(2),
+        },
+        {
+          id: '5',
+          itemId: 'copper-plate',
+          belts: undefined, // Missing belts
+        },
+        {
+          id: '6',
+          itemId: 'copper-cable',
+          belts: rational(0.5), // < 1 belt, so should be ignored
+        }
+      ] as any[];
+
+      await service.exportToBlueprint(steps);
+
+      expect(generateSpy).toHaveBeenCalled();
+      const inputBeltsArg = generateSpy.calls.mostRecent().args[2];
+      expect(inputBeltsArg!.length).toBe(2);
+      
+      const ironPlate = inputBeltsArg!.find((b: any) => b.itemId === 'iron-plate');
+      expect(ironPlate).toEqual({ beltId: 'fast-transport-belt', itemId: 'iron-plate', count: 3 });
+
+      const water = inputBeltsArg!.find((b: any) => b.itemId === 'water');
+      expect(water).toEqual({ beltId: 'pump', itemId: 'water', count: 2 });
+    });
+
     it('should call blueprintService and write to clipboard', async () => {
       const generateSpy = spyOn(service['blueprintService'], 'generateBlueprintFromSteps').and.returnValue(Promise.resolve('0eTest'));
       const writeTextSpy = spyOn(navigator.clipboard, 'writeText').and.returnValue(Promise.resolve());

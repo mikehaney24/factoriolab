@@ -332,6 +332,34 @@ describe('BlueprintService', () => {
 
 
     });
+    
+    it('should generate inputBelts display panel', async () => {
+      const steps = [
+        {
+          id: '1',
+          recipeId: 'lab',
+          machines: rational(1),
+          parents: { '': rational.one },
+          recipeSettings: { machineId: 'lab' }
+        }
+      ] as any[];
+
+      const inputBelts = [
+        { beltId: 'transport-belt', itemId: 'iron-plate', count: 3 },
+        { beltId: 'pump', itemId: 'water', count: 2 },
+        { beltId: 'fast-transport-belt(2)', itemId: 'copper-cable(3)', count: 1 }
+      ];
+
+      const bp = await service.generateBlueprintFromSteps(steps, mockData, inputBelts);
+      const decoded = await decodeFactorioBlueprint(bp);
+
+      const combinator = decoded.blueprint.entities?.find((e: any) => e.name === 'constant-combinator' && e.player_description?.includes('iron-plate'));
+      expect(combinator).toBeDefined();
+      expect(combinator?.player_description).toContain('3 [entity=transport-belt] [item=iron-plate]');
+      expect(combinator?.player_description).toContain('2 [entity=pump] [fluid=water]');
+      expect(combinator?.player_description).toContain('1 [entity=fast-transport-belt] [fluid=copper-cable]');
+    });
+
     it('should hit edge cases in step splitting and DAG layout', async () => {
       const steps: Step[] = [
         {
