@@ -92,7 +92,7 @@ export class Flow {
 
   exportText = signal('flow.exportBlueprint');
   exportSmelters = signal(true);
-  exportSeparatedLayout = signal(false);
+  
 
   constructor() {
     combineLatest({
@@ -139,7 +139,7 @@ export class Flow {
 
     stepsToExport = stepsToExport.filter(s => !isAlwaysExcluded(s));
 
-    await this.exporter.exportToBlueprint(stepsToExport, !this.exportSeparatedLayout(), excludedSteps, combinatorSteps);
+    await this.exporter.exportToBlueprint(stepsToExport, excludedSteps, combinatorSteps);
     this.exportText.set('flow.exportBlueprintCopied');
     setTimeout(() => { this.exportText.set('flow.exportBlueprint'); }, 3000);
   }

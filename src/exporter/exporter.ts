@@ -46,7 +46,7 @@ export class Exporter {
 
   async exportToBlueprint(
     steps: Step[],
-    compactLayout = false,
+
     excludedSteps: Step[] = [],
     combinatorSteps: Step[] = [],
   ): Promise<void> {
@@ -85,7 +85,7 @@ export class Exporter {
         }
     }
     
-    const str = await this.blueprintService.generateBlueprintFromSteps(steps, data, isSpacePlatformLayout, compactLayout, excludedSteps, inputBelts, combinatorSteps);
+    const str = await this.blueprintService.generateBlueprintFromSteps(steps, data, isSpacePlatformLayout, excludedSteps, inputBelts, combinatorSteps);
     await navigator.clipboard.writeText(str);
   }
 
