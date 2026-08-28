@@ -401,7 +401,10 @@ export class BlueprintService {
                       }
                       
                       const beaconText = `${numBeacons} ${beaconTag}${beaconModuleString} ${entityTag} ${itemTag}`;
-                      parametersByMachine.get(machineBaseId)!.push(beaconText);
+                      if (!parametersByMachine.has(beaconBaseId)) {
+                          parametersByMachine.set(beaconBaseId, []);
+                      }
+                      parametersByMachine.get(beaconBaseId)!.push(beaconText);
                   }
               }
           }
