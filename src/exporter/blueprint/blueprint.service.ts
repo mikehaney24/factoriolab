@@ -420,13 +420,7 @@ export class BlueprintService {
           
           let i = 0;
           for (const lines of parametersByMachine.values()) {
-              entities.push({
-                  entity_number: entities.length + 1,
-                  name: 'constant-combinator',
-                  position: { x: displayX + i, y: displayY },
-                  player_description: lines.join('\n'),
-              });
-              i++;
+              i += this.placeCombinatorsForLines(entities, lines, displayX + i, displayY);
           }
       }
   }
@@ -454,14 +448,48 @@ export class BlueprintService {
               displayY = entities[0].position.y - 4;
           }
           
-          entities.push({
-              entity_number: entities.length + 1,
-              name: 'constant-combinator',
-              position: { x: displayX, y: displayY },
-              player_description: parameters.join('\n'),
-          });
+          this.placeCombinatorsForLines(entities, parameters, displayX, displayY);
       }
   }
+
+  private placeCombinatorsForLines(entities: IEntity[], lines: string[], startX: number, startY: number): number {
+      let currentChunk: string[] = [];
+      let currentLength = 0;
+      let count = 0;
+      
+      const flush = () => {
+          if (currentChunk.length > 0) {
+              entities.push({
+                  entity_number: entities.length + 1,
+                  name: 'constant-combinator',
+                  position: { x: startX + count, y: startY },
+                  player_description: currentChunk.join('\n'),
+              });
+              count++;
+              currentChunk = [];
+              currentLength = 0;
+          }
+      };
+
+      for (let line of lines) {
+          if (line.length > 500) {
+              line = "Refer to the website for calculator values, it's too long to display here";
+          }
+          
+          const addedLength = currentChunk.length === 0 ? line.length : line.length + 1;
+          
+          if (currentLength + addedLength > 500) {
+              flush();
+          }
+          
+          currentChunk.push(line);
+          currentLength += currentChunk.length === 1 ? line.length : line.length + 1;
+      }
+      flush();
+      
+      return count || 1; // Always increment x by at least 1 even if empty (though it shouldn't be)
+  }
+
   private parseQualityId(id: string): { baseId: string; level?: number } {
     const match = QUALITY_REGEX.exec(id);
     if (match) {
