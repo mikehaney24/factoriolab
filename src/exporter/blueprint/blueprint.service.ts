@@ -43,11 +43,13 @@ export const FACTORIO_2_1_VERSION = 562954248847360; // Factorio 2.1.7.0
 })
 export class BlueprintService {
   private sortStepsByInputs<T extends { step: Step }>(items: T[], data: Dataset, depths?: Map<string, number>): T[] {
-      const getIngredientCount = (step: Step): number => {
+      const getIoCount = (step: Step): number => {
           if (!step.recipeId) return 0;
           const recipe = data.recipeRecord[step.recipeId];
-          if (!recipe?.in) return 0;
-          return Object.keys(recipe.in).length;
+          let count = 0;
+          if (recipe?.in) count += Object.keys(recipe.in).length;
+          if (recipe?.out) count += Object.keys(recipe.out).length;
+          return count;
       };
 
       const getDepth = (step: Step): number => {
@@ -58,14 +60,17 @@ export class BlueprintService {
       const getInputsString = (step: Step): string => {
           if (!step.recipeId) return '';
           const recipe = data.recipeRecord[step.recipeId];
-          if (!recipe?.in) return '';
-          return Object.keys(recipe.in).sort().join(',');
+          let str = '';
+          if (recipe?.in) str += Object.keys(recipe.in).sort().join(',');
+          str += '|';
+          if (recipe?.out) str += Object.keys(recipe.out).sort().join(',');
+          return str;
       };
 
       return [...items].sort((a, b) => {
-          // 1. Fewest raw ingredients at the top
-          const countA = getIngredientCount(a.step);
-          const countB = getIngredientCount(b.step);
+          // 1. Fewest raw ingredients + outputs at the top
+          const countA = getIoCount(a.step);
+          const countB = getIoCount(b.step);
           if (countA !== countB) return countA - countB;
 
           // 2. Objectives (highest depth) to the right (placed later in the row)
@@ -73,7 +78,7 @@ export class BlueprintService {
           const depthB = getDepth(b.step);
           if (depthA !== depthB) return depthA - depthB;
           
-          // 3. Tie-breaker: group similar inputs together
+          // 3. Tie-breaker: group similar inputs/outputs together
           const inputsA = getInputsString(a.step);
           const inputsB = getInputsString(b.step);
           return inputsA.localeCompare(inputsB);
