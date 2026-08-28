@@ -46,14 +46,10 @@ export class Exporter {
 
   async exportToBlueprint(
     steps: Step[],
-
     excludedSteps: Step[] = [],
     combinatorSteps: Step[] = [],
   ): Promise<void> {
     const data = this.data();
-    const locationIds = this.settingsStore.settings().locationIds;
-    const isSpacePlatformLayout = locationIds.size === 1 && locationIds.has('space-platform');
-    
     const inputBelts: { beltId: string, itemId: string, count: number }[] = [];
     const allSteps = [...excludedSteps, ...steps];
     const itemsState = this.itemsState();
@@ -85,7 +81,7 @@ export class Exporter {
         }
     }
     
-    const str = await this.blueprintService.generateBlueprintFromSteps(steps, data, isSpacePlatformLayout, excludedSteps, inputBelts, combinatorSteps);
+    const str = await this.blueprintService.generateBlueprintFromSteps(steps, data, inputBelts, combinatorSteps);
     await navigator.clipboard.writeText(str);
   }
 
