@@ -42,6 +42,64 @@ export const FACTORIO_2_1_VERSION = 562954248847360; // Factorio 2.1.7.0
   providedIn: 'root',
 })
 export class BlueprintService {
+  private sortStepsByInputs<T extends { step: Step }>(items: T[], data: Dataset): T[] {
+      if (items.length <= 1) return items;
+
+      const getVector = (step: Step): Record<string, number> => {
+          const vec: Record<string, number> = {};
+          if (step.recipeId) {
+              const recipe = data.recipeRecord[step.recipeId];
+              if (recipe?.in) {
+                  for (const itemId of Object.keys(recipe.in)) {
+                      vec[itemId] = 1; // 1 for presence in this dimension
+                  }
+              }
+          }
+          return vec;
+      };
+
+      const vecs = items.map(item => getVector(item.step));
+      
+      // Calculate Euclidean-style distance between two n-dimensional input vectors
+      const dist = (v1: Record<string, number>, v2: Record<string, number>): number => {
+          let d = 0;
+          const keys = new Set([...Object.keys(v1), ...Object.keys(v2)]);
+          for (const k of keys) {
+              const diff = (v1[k] ?? 0) - (v2[k] ?? 0);
+              d += diff * diff;
+          }
+          return d;
+      };
+
+      // Greedy nearest-neighbor (TSP) in n-dimensional space
+      const sortedItems: T[] = [];
+      let currentIdx = 0;
+      const unvisited = new Set(items.map((_, i) => i));
+      
+      unvisited.delete(0);
+      sortedItems.push(items[0]);
+
+      while (unvisited.size > 0) {
+          let bestIdx = -1;
+          let bestDist = Infinity;
+          const currentVec = vecs[currentIdx];
+          
+          for (const idx of unvisited) {
+              const d = dist(currentVec, vecs[idx]);
+              if (d < bestDist) {
+                  bestDist = d;
+                  bestIdx = idx;
+              }
+          }
+          
+          sortedItems.push(items[bestIdx]);
+          unvisited.delete(bestIdx);
+          currentIdx = bestIdx;
+      }
+      
+      return sortedItems;
+  }
+
   async encodeBlueprintString(blueprintData: IBlueprintData): Promise<string> {
     const jsonString = JSON.stringify(blueprintData);
     const utf8Bytes = new TextEncoder().encode(jsonString);
@@ -258,6 +316,10 @@ export class BlueprintService {
       }
       stepsByCol[key].push(step);
       stepColKey.set(step.id, key);
+    }
+    
+    for (const key of Object.keys(stepsByCol)) {
+        stepsByCol[key] = this.sortStepsByInputs(stepsByCol[key].map(s => ({ step: s })), data).map(s => s.step);
     }
 
     // Sort colKeys ascending by depth, then descending by width
@@ -705,8 +767,8 @@ export class BlueprintService {
           });
       }
       
-      // Shelf packing
-      blocks.sort((a, b) => b.blockH - a.blockH); // tallest first
+      // Shelf packing using input vector sorting to keep related machines adjacent
+      blocks = this.sortStepsByInputs(blocks, data);
       const targetWidth = Math.max(...blocks.map(b => b.blockW), Math.ceil(Math.sqrt(totalArea)));
       
       let currentX = 0;
