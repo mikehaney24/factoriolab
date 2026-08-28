@@ -42,62 +42,42 @@ export const FACTORIO_2_1_VERSION = 562954248847360; // Factorio 2.1.7.0
   providedIn: 'root',
 })
 export class BlueprintService {
-  private sortStepsByInputs<T extends { step: Step }>(items: T[], data: Dataset): T[] {
-      if (items.length <= 1) return items;
-
-      const getVector = (step: Step): Record<string, number> => {
-          const vec: Record<string, number> = {};
-          if (step.recipeId) {
-              const recipe = data.recipeRecord[step.recipeId];
-              if (recipe?.in) {
-                  for (const itemId of Object.keys(recipe.in)) {
-                      vec[itemId] = 1; // 1 for presence in this dimension
-                  }
-              }
-          }
-          return vec;
+  private sortStepsByInputs<T extends { step: Step }>(items: T[], data: Dataset, depths?: Map<string, number>): T[] {
+      const getIngredientCount = (step: Step): number => {
+          if (!step.recipeId) return 0;
+          const recipe = data.recipeRecord[step.recipeId];
+          if (!recipe?.in) return 0;
+          return Object.keys(recipe.in).length;
       };
 
-      const vecs = items.map(item => getVector(item.step));
+      const getDepth = (step: Step): number => {
+          if (!step.id || !depths) return 0;
+          return depths.get(step.id) ?? 0;
+      };
       
-      // Calculate Euclidean-style distance between two n-dimensional input vectors
-      const dist = (v1: Record<string, number>, v2: Record<string, number>): number => {
-          let d = 0;
-          const keys = new Set([...Object.keys(v1), ...Object.keys(v2)]);
-          for (const k of keys) {
-              const diff = (v1[k] ?? 0) - (v2[k] ?? 0);
-              d += diff * diff;
-          }
-          return d;
+      const getInputsString = (step: Step): string => {
+          if (!step.recipeId) return '';
+          const recipe = data.recipeRecord[step.recipeId];
+          if (!recipe?.in) return '';
+          return Object.keys(recipe.in).sort().join(',');
       };
 
-      // Greedy nearest-neighbor (TSP) in n-dimensional space
-      const sortedItems: T[] = [];
-      let currentIdx = 0;
-      const unvisited = new Set(items.map((_, i) => i));
-      
-      unvisited.delete(0);
-      sortedItems.push(items[0]);
+      return [...items].sort((a, b) => {
+          // 1. Fewest raw ingredients at the top
+          const countA = getIngredientCount(a.step);
+          const countB = getIngredientCount(b.step);
+          if (countA !== countB) return countA - countB;
 
-      while (unvisited.size > 0) {
-          let bestIdx = -1;
-          let bestDist = Infinity;
-          const currentVec = vecs[currentIdx];
+          // 2. Objectives (highest depth) to the right (placed later in the row)
+          const depthA = getDepth(a.step);
+          const depthB = getDepth(b.step);
+          if (depthA !== depthB) return depthA - depthB;
           
-          for (const idx of unvisited) {
-              const d = dist(currentVec, vecs[idx]);
-              if (d < bestDist) {
-                  bestDist = d;
-                  bestIdx = idx;
-              }
-          }
-          
-          sortedItems.push(items[bestIdx]);
-          unvisited.delete(bestIdx);
-          currentIdx = bestIdx;
-      }
-      
-      return sortedItems;
+          // 3. Tie-breaker: group similar inputs together
+          const inputsA = getInputsString(a.step);
+          const inputsB = getInputsString(b.step);
+          return inputsA.localeCompare(inputsB);
+      });
   }
 
   async encodeBlueprintString(blueprintData: IBlueprintData): Promise<string> {
@@ -319,7 +299,7 @@ export class BlueprintService {
     }
     
     for (const key of Object.keys(stepsByCol)) {
-        stepsByCol[key] = this.sortStepsByInputs(stepsByCol[key].map(s => ({ step: s })), data).map(s => s.step);
+        stepsByCol[key] = this.sortStepsByInputs(stepsByCol[key].map(s => ({ step: s })), data, depths).map(s => s.step);
     }
 
     // Sort colKeys ascending by depth, then descending by width
@@ -715,8 +695,46 @@ export class BlueprintService {
   private async generateCompactRectangleBlueprint(steps: Step[], data: Dataset, _excludedSteps: Step[] = [], inputBelts: { beltId: string, itemId: string, count: number }[] = [], combinatorSteps: Step[] = []): Promise<string> {
       const entities: IEntity[] = [];
       let entity_number = 1;
+    const incomingEdges = new Map<string, string[]>();
+    for (const step of steps) {
+      if (!step.id) continue;
+      if (!incomingEdges.has(step.id)) incomingEdges.set(step.id, []);
+    }
+
+    for (const step of steps) {
+      if (!step.id || !step.parents) continue;
+      for (const parentId of Object.keys(step.parents)) {
+         if (parentId === '') continue; // '' is output
+         if (!incomingEdges.has(parentId)) incomingEdges.set(parentId, []);
+         incomingEdges.get(parentId)?.push(step.id);
+      }
+    }
+
+    const depths = new Map<string, number>();
+    const calcDepth = (id: string, visited: Set<string>): number => {
+      if (depths.has(id)) return depths.get(id) ?? 0;
+      if (visited.has(id)) return 0; // Cycle detected
+      visited.add(id);
+
+      const incoming = incomingEdges.get(id) ?? [];
+      let maxDepth = 0;
+      for (const inc of incoming) {
+        maxDepth = Math.max(maxDepth, calcDepth(inc, visited) + 1);
+      }
       
-      const blocks: CompactBlock[] = [];
+      visited.delete(id);
+      depths.set(id, maxDepth);
+      return maxDepth;
+    };
+
+    for (const step of steps) {
+       if (step.id && !depths.has(step.id)) {
+           calcDepth(step.id, new Set());
+       }
+    }
+
+      
+      let blocks: CompactBlock[] = [];
       let totalArea = 0;
       
       for (const step of steps) {
@@ -768,7 +786,7 @@ export class BlueprintService {
       }
       
       // Shelf packing using input vector sorting to keep related machines adjacent
-      blocks = this.sortStepsByInputs(blocks, data);
+      blocks = this.sortStepsByInputs(blocks, data, depths);
       const targetWidth = Math.max(...blocks.map(b => b.blockW), Math.ceil(Math.sqrt(totalArea)));
       
       let currentX = 0;
