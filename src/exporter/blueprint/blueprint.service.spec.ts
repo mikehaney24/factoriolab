@@ -333,7 +333,7 @@ describe('BlueprintService', () => {
 
     });
     
-    it('should generate inputBelts display panel', async () => {
+    it('should generate inputBelts combinator', async () => {
       const steps = [
         {
           id: '1',
@@ -419,7 +419,7 @@ describe('BlueprintService', () => {
       expect(bp).toBeTruthy();
     });
 
-    it('should generate display panels with belts and items', async () => {
+    it('should generate combinators with belts and items', async () => {
       const steps: Step[] = [
         {
           id: '1', // Target output
