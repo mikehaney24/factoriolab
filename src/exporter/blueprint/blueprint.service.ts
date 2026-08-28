@@ -376,6 +376,38 @@ export class BlueprintService {
               parametersByMachine.set(machineBaseId, []);
           }
           parametersByMachine.get(machineBaseId)!.push(text);
+          
+          if (step.recipeSettings?.beacons) {
+              for (const beacon of step.recipeSettings.beacons) {
+                  const bCount = beacon.total ?? beacon.count;
+                  if (beacon.id && bCount && !bCount.isZero()) {
+                      const numBeacons = Math.ceil(bCount.toNumber());
+                      if (numBeacons <= 0) continue;
+                      
+                      const { baseId: beaconBaseId } = this.parseQualityId(beacon.id);
+                      const beaconTag = `[entity=${beaconBaseId}]`;
+                      
+                      let beaconModuleString = '';
+                      if (beacon.modules) {
+                          for (const mod of beacon.modules) {
+                              if (mod.id && mod.id !== 'module') {
+                                  const count = Math.ceil(mod.count?.toNumber() ?? 0);
+                                  if (count > 0) {
+                                      const { baseId: modBaseId } = this.parseQualityId(mod.id);
+                                      beaconModuleString += ` ${count}[item=${modBaseId}]`;
+                                  }
+                              }
+                          }
+                      }
+                      
+                      const beaconText = `${numBeacons} ${beaconTag}${beaconModuleString} ${entityTag} ${itemTag}`;
+                      if (!parametersByMachine.has(beaconBaseId)) {
+                          parametersByMachine.set(beaconBaseId, []);
+                      }
+                      parametersByMachine.get(beaconBaseId)!.push(beaconText);
+                  }
+              }
+          }
       }
       
       if (parametersByMachine.size > 0) {
