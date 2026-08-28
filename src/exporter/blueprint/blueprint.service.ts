@@ -399,7 +399,6 @@ export class BlueprintService {
       }
   }
 
-  // istanbul ignore next
   private addInputBeltsDisplayPanel(entities: IEntity[], inputBelts: { beltId: string, itemId: string, count: number }[], data: Dataset): void {
       if (!inputBelts || inputBelts.length === 0) return;
       
