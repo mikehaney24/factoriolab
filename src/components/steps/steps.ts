@@ -138,7 +138,7 @@ export class Steps {
   protected readonly expandedSteps = signal<Set<string>>(new Set());
   exportSmelters = signal(true);
   exportText = signal('flow.exportBlueprint');
-  exportSeparatedLayout = signal(false);
+  
 
   async exportBlueprint(): Promise<void> {
     let stepsToExport = [...this.steps()];
@@ -173,7 +173,7 @@ export class Steps {
 
     stepsToExport = stepsToExport.filter(s => !isAlwaysExcluded(s));
 
-    await this.exporter.exportToBlueprint(stepsToExport, !this.exportSeparatedLayout(), excludedSteps, combinatorSteps);
+    await this.exporter.exportToBlueprint(stepsToExport, excludedSteps, combinatorSteps);
     this.exportText.set('flow.exportBlueprintCopied');
     setTimeout(() => { this.exportText.set('flow.exportBlueprint'); }, 3000);
   }
