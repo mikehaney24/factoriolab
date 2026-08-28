@@ -46,7 +46,7 @@ export class BlueprintService {
   private sortStepsByInputs<T extends { step: Step }>(items: T[], data: Dataset, depths?: Map<string, number>): T[] {
       const getIoCount = (step: Step): number => {
           if (!step.recipeId) return 0;
-          const recipe = data.recipeRecord[step.recipeId];
+          const recipe = data.recipeRecord?.[step.recipeId];
           let count = 0;
           let hasPetro = false;
 
@@ -83,7 +83,7 @@ export class BlueprintService {
       
       const getInputsString = (step: Step): string => {
           if (!step.recipeId) return '';
-          const recipe = data.recipeRecord[step.recipeId];
+          const recipe = data.recipeRecord?.[step.recipeId];
           let str = '';
           if (recipe?.in) str += Object.keys(recipe.in).sort().join(',');
           str += '|';
@@ -127,7 +127,7 @@ export class BlueprintService {
     return '0' + btoa(binaryString);
   }
 
-  async generateBlueprintFromSteps(steps: Step[], data: Dataset, _isSpacePlatformLayout = false, _excludedSteps: Step[] = [], inputBelts: { beltId: string, itemId: string, count: number }[] = [], combinatorSteps: Step[] = []): Promise<string> {
+  async generateBlueprintFromSteps(steps: Step[], data: Dataset, inputBelts: { beltId: string, itemId: string, count: number }[] = [], combinatorSteps: Step[] = []): Promise<string> {
       const entities: IEntity[] = [];
       let entity_number = 1;
     const incomingEdges = new Map<string, string[]>();
@@ -305,8 +305,8 @@ export class BlueprintService {
           });
       }
       
-      this.addExcludedStepsDisplayPanel(entities, entity_number, combinatorSteps, data);
-      this.addInputBeltsDisplayPanel(entities, entity_number + combinatorSteps.length, inputBelts, data);
+      this.addExcludedStepsDisplayPanel(entities, combinatorSteps, data);
+      this.addInputBeltsDisplayPanel(entities, inputBelts, data);
       
       const blueprintData: IBlueprintData = {
           blueprint: {
@@ -333,7 +333,7 @@ export class BlueprintService {
       });
   }
 
-  private addExcludedStepsDisplayPanel(entities: IEntity[], entity_number: number, excludedSteps: Step[], data: Dataset): void {
+  private addExcludedStepsDisplayPanel(entities: IEntity[], excludedSteps: Step[], data: Dataset): void {
       if (!excludedSteps || excludedSteps.length === 0) return;
       
       const parametersByMachine = new Map<string, string[]>();
@@ -389,7 +389,7 @@ export class BlueprintService {
           let i = 0;
           for (const lines of parametersByMachine.values()) {
               entities.push({
-                  entity_number: entity_number + i,
+                  entity_number: entities.length + 1,
                   name: 'constant-combinator',
                   position: { x: displayX + i, y: displayY },
                   player_description: lines.join('\n'),
@@ -400,7 +400,7 @@ export class BlueprintService {
   }
 
   // istanbul ignore next
-  private addInputBeltsDisplayPanel(entities: IEntity[], entity_number: number, inputBelts: { beltId: string, itemId: string, count: number }[], data: Dataset): void {
+  private addInputBeltsDisplayPanel(entities: IEntity[], inputBelts: { beltId: string, itemId: string, count: number }[], data: Dataset): void {
       if (!inputBelts || inputBelts.length === 0) return;
       
       const parameters: string[] = [];
@@ -423,13 +423,8 @@ export class BlueprintService {
               displayY = entities[0].position.y - 4;
           }
           
-          let maxEntityNumber = entity_number;
-          for (const entity of entities) {
-              if (entity.entity_number >= maxEntityNumber) maxEntityNumber = entity.entity_number + 1;
-          }
-          
           entities.push({
-              entity_number: maxEntityNumber,
+              entity_number: entities.length + 1,
               name: 'constant-combinator',
               position: { x: displayX, y: displayY },
               player_description: parameters.join('\n'),
