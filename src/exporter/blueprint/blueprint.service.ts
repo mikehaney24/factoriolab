@@ -305,8 +305,8 @@ export class BlueprintService {
           });
       }
       
-      this.addExcludedStepsDisplayPanel(entities, combinatorSteps, data);
-      this.addInputBeltsDisplayPanel(entities, inputBelts, data);
+      this.addExcludedStepsCombinator(entities, combinatorSteps, data);
+      this.addInputBeltsCombinator(entities, inputBelts, data);
       
       const blueprintData: IBlueprintData = {
           blueprint: {
@@ -333,7 +333,7 @@ export class BlueprintService {
       });
   }
 
-  private addExcludedStepsDisplayPanel(entities: IEntity[], excludedSteps: Step[], data: Dataset): void {
+  private addExcludedStepsCombinator(entities: IEntity[], excludedSteps: Step[], data: Dataset): void {
       if (!excludedSteps || excludedSteps.length === 0) return;
       
       const parametersByMachine = new Map<string, string[]>();
@@ -399,7 +399,7 @@ export class BlueprintService {
       }
   }
 
-  private addInputBeltsDisplayPanel(entities: IEntity[], inputBelts: { beltId: string, itemId: string, count: number }[], data: Dataset): void {
+  private addInputBeltsCombinator(entities: IEntity[], inputBelts: { beltId: string, itemId: string, count: number }[], data: Dataset): void {
       if (!inputBelts || inputBelts.length === 0) return;
       
       const parameters: string[] = [];
