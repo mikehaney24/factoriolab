@@ -47,8 +47,31 @@ export class BlueprintService {
           if (!step.recipeId) return 0;
           const recipe = data.recipeRecord[step.recipeId];
           let count = 0;
-          if (recipe?.in) count += Object.keys(recipe.in).length;
-          if (recipe?.out) count += Object.keys(recipe.out).length;
+          let hasPetro = false;
+
+          const checkPetro = (k: string): void => {
+              if (k.includes('oil') || k.includes('petroleum') || k.includes('lubricant') || k.includes('acid') || k.includes('sulfur') || k.includes('plastic') || k.includes('explosive')) {
+                  hasPetro = true;
+              }
+          };
+
+          if (recipe?.in) {
+              const keys = Object.keys(recipe.in);
+              count += keys.length;
+              keys.forEach(checkPetro);
+          }
+          if (recipe?.out) {
+              const keys = Object.keys(recipe.out);
+              count += keys.length;
+              keys.forEach(checkPetro);
+          }
+
+          if (hasPetro) {
+              // Weight petro machines heavily so they group together at the bottom.
+              // Giving them all the same count forces them to be sorted perfectly by depth!
+              return 100;
+          }
+
           return count;
       };
 
