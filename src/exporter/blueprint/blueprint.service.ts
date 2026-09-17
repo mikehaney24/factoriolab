@@ -411,12 +411,8 @@ export class BlueprintService {
       }
       
       if (parametersByMachine.size > 0) {
-          let displayX = 0;
-          let displayY = -2;
-          if (entities.length > 0) {
-              displayX = entities[0].position.x;
-              displayY = entities[0].position.y - 2;
-          }
+          let displayX = 0.5;
+          let displayY = -1.5;
           
           let i = 0;
           for (const lines of parametersByMachine.values()) {
@@ -441,12 +437,8 @@ export class BlueprintService {
       }
       
       if (parameters.length > 0) {
-          let displayX = 0;
-          let displayY = -4; // Place it slightly higher up
-          if (entities.length > 0) {
-              displayX = entities[0].position.x;
-              displayY = entities[0].position.y - 4;
-          }
+          let displayX = 0.5;
+          let displayY = -2.5;
           
           this.placeCombinatorsForLines(entities, parameters, displayX, displayY);
       }
