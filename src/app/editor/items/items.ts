@@ -1,0 +1,233 @@
+import { Dialog } from '@angular/cdk/dialog';
+import {
+  CdkDragDrop,
+  DragDropModule,
+  moveItemInArray,
+} from '@angular/cdk/drag-drop';
+import { CdkMenuModule } from '@angular/cdk/menu';
+import {
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  computed,
+  inject,
+} from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { FaIconComponent } from '@fortawesome/angular-fontawesome';
+import {
+  faCheck,
+  faEllipsis,
+  faExclamationTriangle,
+  faGrip,
+  faPencil,
+  faPlus,
+  faXmark,
+} from '@fortawesome/free-solid-svg-icons';
+
+import { Button } from '~/components/button/button';
+import { Select } from '~/components/select/select';
+import { ItemJson } from '~/data/schema/item';
+import { TranslatePipe } from '~/translate/translate-pipe';
+
+import { EditorTab } from '../editor-tab';
+import { emptyItem, toOptions } from '../object-utils';
+import { ItemDialog, ItemDialogData } from './item-dialog/item-dialog';
+
+@Component({
+  selector: 'lab-items',
+  imports: [
+    FormsModule,
+    CdkMenuModule,
+    DragDropModule,
+    FaIconComponent,
+    Button,
+    Select,
+    TranslatePipe,
+  ],
+  templateUrl: './items.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'grow' },
+})
+export class Items extends EditorTab {
+  private readonly cd = inject(ChangeDetectorRef);
+  private readonly dialog = inject(Dialog);
+
+  protected readonly faEllipsis = faEllipsis;
+  protected readonly faGrip = faGrip;
+  protected readonly faPencil = faPencil;
+  protected readonly faPlus = faPlus;
+  protected model = emptyItem();
+
+  protected readonly categoryOptions = computed(() => {
+    const { data, icons } = this.edit();
+    return toOptions(data.categories, icons, true);
+  });
+
+  editItem(item: ItemJson, index?: number): void {
+    item = JSON.parse(JSON.stringify(item)) as ItemJson;
+    this.dialog
+      .open<
+        ItemJson | undefined,
+        ItemDialogData,
+        ItemDialog
+      >(ItemDialog, { data: { item, edit: this.edit(), header: item.name } })
+      .closed.subscribe((result) => {
+        if (result) {
+          if (index == null) this.model = result;
+          else this.edit().data.items[index] = result;
+        }
+        this.cd.detectChanges();
+      });
+  }
+
+  add(): void {
+    this.edit().data.items.push(this.model);
+    this.model = emptyItem();
+  }
+
+  drop(event: CdkDragDrop<unknown>): void {
+    moveItemInArray(
+      this.edit().data.items,
+      event.previousIndex,
+      event.currentIndex,
+    );
+  }
+
+  changeId(item: ItemJson, id: string): void {
+    const { data } = this.edit();
+    for (const i of data.items) {
+      if (i.machine) {
+        if (i.machine.fuel === item.id) i.machine.fuel = id;
+        if (i.machine.consumption?.[item.id]) {
+          i.machine.consumption[id] = i.machine.consumption[item.id];
+          delete i.machine.consumption[item.id];
+        }
+      }
+
+      if (i.module?.proliferator === item.id) i.module.proliferator = id;
+      if (i.fuel?.result === item.id) i.fuel.result = id;
+      if (i.technology?.prerequisites?.includes(item.id)) {
+        const index = i.technology.prerequisites.indexOf(item.id);
+        i.technology.prerequisites[index] = id;
+      }
+    }
+
+    for (const r of data.recipes) {
+      if (r.producers?.includes(item.id)) {
+        const index = r.producers.indexOf(item.id);
+        r.producers[index] = id;
+      }
+
+      if (r.in[item.id]) {
+        r.in[id] = r.in[item.id];
+        delete r.in[item.id];
+      }
+
+      if (r.out[item.id]) {
+        r.out[id] = r.out[item.id];
+        delete r.out[item.id];
+      }
+
+      if (r.catalyst?.[item.id]) {
+        r.catalyst[id] = r.catalyst[item.id];
+        delete r.catalyst[item.id];
+      }
+
+      if (r.part === item.id) r.part = id;
+    }
+
+    if (data.defaults) {
+      if (data.defaults.beacon === item.id) data.defaults.beacon = id;
+      if (data.defaults.beaconModule === item.id)
+        data.defaults.beaconModule = id;
+      if (data.defaults.cargoWagon === item.id) data.defaults.cargoWagon = id;
+      if (data.defaults.fluidWagon === item.id) data.defaults.fluidWagon = id;
+      if (data.defaults.fuelRank?.includes(item.id)) {
+        const index = data.defaults?.fuelRank.indexOf(item.id);
+        data.defaults.fuelRank[index] = id;
+      }
+
+      if (data.defaults.moduleRank?.includes(item.id)) {
+        const index = data.defaults?.moduleRank.indexOf(item.id);
+        data.defaults.moduleRank[index] = id;
+      }
+
+      if (data.defaults.researchedTechnologies?.includes(item.id)) {
+        const index = data.defaults?.researchedTechnologies.indexOf(item.id);
+        data.defaults.researchedTechnologies[index] = item.id;
+      }
+
+      if ('presets' in data.defaults) {
+        for (const preset of data.defaults.presets) {
+          if (preset.beacon === item.id) preset.beacon = id;
+          if (preset.beaconModule === item.id) preset.beaconModule = id;
+          if (preset.belt === item.id) preset.belt = id;
+          if (preset.cargoWagon === item.id) preset.cargoWagon = id;
+          if (preset.fluidWagon === item.id) preset.fluidWagon = id;
+          if (preset.fuelRank?.includes(item.id)) {
+            const index = preset.fuelRank.indexOf(item.id);
+            preset.fuelRank[index] = id;
+          }
+
+          if (preset.machineRank?.includes(item.id)) {
+            const index = preset.machineRank.indexOf(item.id);
+            preset.machineRank[index] = id;
+          }
+
+          if (preset.moduleRank?.includes(item.id)) {
+            const index = preset.moduleRank.indexOf(item.id);
+            preset.moduleRank[index] = id;
+          }
+
+          if (preset.pipe === item.id) preset.pipe = id;
+          if (preset.researchedTechnologies?.includes(item.id)) {
+            const index = preset.researchedTechnologies.indexOf(item.id);
+            preset.researchedTechnologies[index] = id;
+          }
+        }
+      } else {
+        if (data.defaults.minBelt === item.id) data.defaults.minBelt = id;
+        if (data.defaults.maxBelt === item.id) data.defaults.maxBelt = id;
+        if (data.defaults.minPipe === item.id) data.defaults.minPipe = id;
+        if (data.defaults.maxPipe === item.id) data.defaults.maxPipe = id;
+        if (data.defaults.minMachineRank?.includes(item.id)) {
+          const index = data.defaults.minMachineRank.indexOf(item.id);
+          data.defaults.minMachineRank[index] = id;
+        }
+
+        if (data.defaults.maxMachineRank?.includes(item.id)) {
+          const index = data.defaults.maxMachineRank.indexOf(item.id);
+          data.defaults.maxMachineRank[index] = id;
+        }
+      }
+    }
+
+    item.id = id;
+  }
+
+  clone(item: ItemJson, index: number): void {
+    item = JSON.parse(JSON.stringify(item)) as ItemJson;
+    this.edit().data.items.splice(index + 1, 0, item);
+  }
+
+  remove(id: string): void {
+    const { data } = this.edit();
+    this.confirm
+      .open({
+        header: 'Delete item?',
+        message:
+          'If this item is in use, deleting it will invalidate some entities. Continue?',
+        icon: faExclamationTriangle,
+        actions: [
+          { text: 'yes', value: 1, icon: faCheck },
+          { text: 'cancel', value: 0, icon: faXmark },
+        ],
+      })
+      .subscribe((res) => {
+        if (res === 1) {
+          data.items = data.items.filter((c) => c.id !== id);
+          this.cd.detectChanges();
+        }
+      });
+  }
+}
